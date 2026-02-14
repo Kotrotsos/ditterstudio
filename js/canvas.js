@@ -197,8 +197,12 @@ const DitterCanvas = (() => {
   function render() {
     if (!ctx) return;
 
-    const displayWidth = canvas.width / window.devicePixelRatio;
-    const displayHeight = canvas.height / window.devicePixelRatio;
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.width / dpr;
+    const displayHeight = canvas.height / dpr;
+
+    // Always re-apply DPR transform (canvas state resets when dimensions change)
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Clear
     ctx.fillStyle = bgColor;
@@ -436,6 +440,14 @@ const DitterCanvas = (() => {
   }
 
   /**
+   * Reset to the original unprocessed source image.
+   */
+  function resetToOriginal() {
+    resultImageData = null;
+    render();
+  }
+
+  /**
    * Destroy and clean up.
    */
   function destroy() {
@@ -464,6 +476,7 @@ const DitterCanvas = (() => {
     zoomFit,
     getZoom,
     updateThemeColor,
+    resetToOriginal,
     destroy
   };
 })();

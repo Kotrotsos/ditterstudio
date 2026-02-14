@@ -78,6 +78,9 @@ const DitterApp = (() => {
     // Set up export
     setupExport();
 
+    // Set up reset
+    setupReset();
+
     // Set up color/gradient input creation
     setupCreateInput();
 
@@ -162,6 +165,15 @@ const DitterApp = (() => {
   /**
    * Set up export functionality.
    */
+  function setupReset() {
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      if (!DitterCanvas.hasImage()) return;
+      DitterCanvas.resetToOriginal();
+      const params = DitterUI.getProcessingParams();
+      DitterCanvas.processImage(params);
+    });
+  }
+
   function setupExport() {
     const exportBtn = document.getElementById('btn-export');
     const formatSelect = document.getElementById('export-format');

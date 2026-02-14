@@ -1,0 +1,17 @@
+{
+  "name": "ditter",
+  "version": "1.0.0",
+  "description": "Dithering tool with 50+ algorithms",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "keywords": ["dithering", "image-processing"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
