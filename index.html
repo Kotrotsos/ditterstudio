@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ditter - Dithering Tool</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header id="header">
+      <div class="header-left">
+        <h1 class="logo">Ditter</h1>
+      </div>
+      <div class="header-right">
+        <button id="btn-import" class="btn btn-secondary">Import</button>
+        <button id="btn-export" class="btn btn-primary">Export</button>
+        <button id="btn-studio" class="btn btn-accent">Studio</button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main">
+      <!-- Canvas Area (Left) -->
+      <section id="canvas-area">
+        <div id="canvas-container">
+          <canvas id="preview-canvas"></canvas>
+          <div id="processing-indicator" class="processing-indicator">
+            <div class="spinner"></div>
+            <span>Processing...</span>
+          </div>
+          <div id="drop-zone" class="drop-zone">
+            <div class="drop-zone-content">
+              <div class="drop-icon">+</div>
+              <p class="drop-text">Drop an image here or click to upload</p>
+              <p class="drop-hint">PNG, JPG, WebP, GIF</p>
+              <button id="btn-create-input" class="btn btn-secondary btn-small">Or generate a gradient</button>
+            </div>
+          </div>
+        </div>
+        <div id="canvas-toolbar">
+          <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
+          <span id="zoom-level">100%</span>
+          <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">-</button>
+          <button id="btn-zoom-reset" class="btn btn-icon" title="Reset Zoom">1:1</button>
+          <button id="btn-zoom-fit" class="btn btn-icon" title="Fit to View">Fit</button>
+          <span class="toolbar-separator"></span>
+          <span id="image-info" class="toolbar-info"></span>
+        </div>
+      </section>
+
+      <!-- Control Panel (Right) -->
+      <aside id="control-panel">
+        <div class="panel-scroll">
+
+          <!-- Source Section -->
+          <div id="source-section" class="panel-section">
+            <h3 class="section-title">Source</h3>
+            <div id="source-empty">
+              <button id="btn-generate-gradient" class="btn btn-secondary btn-small" style="width:100%">Generate Gradient</button>
+            </div>
+            <div id="source-image-info" class="hidden">
+              <p class="source-mode-label">Uploaded image</p>
+              <div class="control-row">
+                <button id="btn-switch-gradient" class="btn btn-secondary btn-small">Switch to Gradient</button>
+              </div>
+            </div>
+            <div id="source-gradient-mode" class="hidden">
+              <div class="control-group">
+                <label for="source-type">Type</label>
+                <select id="source-type" class="select">
+                  <option value="solid">Solid Color</option>
+                  <option value="linear-gradient">Linear Gradient</option>
+                  <option value="radial-gradient">Radial Gradient</option>
+                </select>
+              </div>
+              <div class="control-row source-size-row">
+                <div class="control-group">
+                  <label for="source-width">Width</label>
+                  <input type="number" id="source-width" class="text-input" value="512" min="1" max="4096">
+                </div>
+                <div class="control-group">
+                  <label for="source-height">Height</label>
+                  <input type="number" id="source-height" class="text-input" value="512" min="1" max="4096">
+                </div>
+              </div>
+              <div id="source-solid-controls">
+                <div class="control-group">
+                  <label for="source-color">Color</label>
+                  <input type="color" id="source-color" class="color-input" value="#808080">
+                </div>
+              </div>
+              <div id="source-gradient-colors" class="hidden">
+                <div class="control-group">
+                  <label for="source-color-start">Start Color</label>
+                  <input type="color" id="source-color-start" class="color-input" value="#000000">
+                </div>
+                <div class="control-group">
+                  <label for="source-color-end">End Color</label>
+                  <input type="color" id="source-color-end" class="color-input" value="#ffffff">
+                </div>
+                <div class="control-group" id="source-angle-group">
+                  <label for="source-angle">Angle <span id="val-source-angle" class="slider-value">0</span></label>
+                  <input type="range" id="source-angle" class="slider" min="0" max="360" value="0" step="1">
+                </div>
+              </div>
+              <div class="control-row">
+                <button id="btn-upload-image" class="btn btn-secondary btn-small">Upload Image</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Style Section -->
+          <div class="panel-section">
+            <h3 class="section-title">Style</h3>
+            <div class="control-group">
+              <label for="style-category">Category</label>
+              <select id="style-category" class="select">
+                <option value="error-diffusion">Error Diffusion</option>
+                <option value="ordered">Ordered Dithering</option>
+                <option value="halftone">Halftone</option>
+                <option value="noise">Noise / Stochastic</option>
+                <option value="pattern">Pattern</option>
+                <option value="artistic">Artistic</option>
+                <option value="threshold">Threshold</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="style-algorithm">Algorithm</label>
+              <select id="style-algorithm" class="select">
+                <option value="floyd-steinberg">Floyd-Steinberg</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Presets Section -->
+          <div class="panel-section">
+            <h3 class="section-title">Presets</h3>
+            <div class="control-group">
+              <select id="preset-select" class="select">
+                <option value="">-- Select Preset --</option>
+              </select>
+            </div>
+            <div class="control-row">
+              <button id="btn-save-preset" class="btn btn-secondary btn-small">Save Preset</button>
+              <button id="btn-reset-all" class="btn btn-secondary btn-small">Reset All</button>
+            </div>
+          </div>
+
+          <!-- Adjustments Section -->
+          <div class="panel-section">
+            <h3 class="section-title">Adjustments</h3>
+
+            <div class="control-group">
+              <label for="slider-scale">Scale <span id="val-scale" class="slider-value">1</span></label>
+              <input type="range" id="slider-scale" class="slider" min="1" max="32" value="1" step="1">
+            </div>
+
+            <div class="control-group">
+              <label for="slider-line-scale">Line Scale <span id="val-line-scale" class="slider-value">1</span></label>
+              <input type="range" id="slider-line-scale" class="slider" min="0.2" max="8" value="1" step="0.1">
+            </div>
+
+            <div class="control-group">
+              <label for="slider-smoothing">Smoothing <span id="val-smoothing" class="slider-value">0</span></label>
+              <input type="range" id="slider-smoothing" class="slider" min="0" max="100" value="0" step="1">
+            </div>
+
+            <div class="control-group">
+              <label for="slider-blend">Blend <span id="val-blend" class="slider-value">100</span></label>
+              <input type="range" id="slider-blend" class="slider" min="0" max="100" value="100" step="1">
+            </div>
+          </div>
+
+          <!-- Palette Section -->
+          <div class="panel-section">
+            <h3 class="section-title">Palette</h3>
+            <div class="control-group">
+              <label for="palette-category">Category</label>
+              <select id="palette-category" class="select">
+                <option value="default">Default</option>
+                <option value="retro">Retro</option>
+                <option value="modern">Modern</option>
+                <option value="themed">Themed</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="palette-select">Palette</label>
+              <select id="palette-select" class="select">
+                <option value="bw">Black & White</option>
+              </select>
+            </div>
+            <div id="palette-preview" class="palette-preview"></div>
+          </div>
+
+          <!-- Tone Section -->
+          <div class="panel-section">
+            <h3 class="section-title">Tone</h3>
+
+            <div class="control-group">
+              <label>
+                <input type="checkbox" id="toggle-invert"> Invert
+              </label>
+            </div>
+
+            <div class="control-group">
+              <label for="slider-contrast">Contrast <span id="val-contrast" class="slider-value">50</span></label>
+              <input type="range" id="slider-contrast" class="slider" min="0" max="100" value="50" step="1">
+            </div>
+
+            <div class="control-group">
+              <label for="slider-midtones">Midtones <span id="val-midtones" class="slider-value">50</span></label>
+              <input type="range" id="slider-midtones" class="slider" min="0" max="100" value="50" step="1">
+            </div>
+
+            <div class="control-group">
+              <label for="slider-highlights">Highlights <span id="val-highlights" class="slider-value">50</span></label>
+              <input type="range" id="slider-highlights" class="slider" min="0" max="100" value="50" step="1">
+            </div>
+
+            <div class="control-group">
+              <label for="slider-threshold">Luminance Threshold <span id="val-threshold" class="slider-value">50</span></label>
+              <input type="range" id="slider-threshold" class="slider" min="0" max="100" value="50" step="1">
+            </div>
+          </div>
+
+          <!-- Effects Section -->
+          <div class="panel-section">
+            <h3 class="section-title">Effects</h3>
+
+            <div class="control-group">
+              <label for="slider-blur">Blur <span id="val-blur" class="slider-value">0</span></label>
+              <input type="range" id="slider-blur" class="slider" min="0" max="10" value="0" step="0.1">
+            </div>
+
+            <div class="control-group">
+              <label for="slider-depth">Depth <span id="val-depth" class="slider-value">0</span></label>
+              <input type="range" id="slider-depth" class="slider" min="0" max="10" value="0" step="0.1">
+            </div>
+          </div>
+
+        </div>
+      </aside>
+    </main>
+
+    <!-- Modals -->
+
+    <!-- Export Modal -->
+    <div id="modal-export" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Export Image</h2>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="control-group">
+            <label for="export-format">Format</label>
+            <select id="export-format" class="select">
+              <option value="png">PNG</option>
+              <option value="jpg">JPEG</option>
+              <option value="webp">WebP</option>
+            </select>
+          </div>
+          <div class="control-group" id="export-quality-group">
+            <label for="export-quality">Quality <span id="val-export-quality" class="slider-value">92</span></label>
+            <input type="range" id="export-quality" class="slider" min="1" max="100" value="92" step="1">
+          </div>
+          <div class="control-group">
+            <label for="export-scale">Scale</label>
+            <select id="export-scale" class="select">
+              <option value="1">1x (Original)</option>
+              <option value="2">2x</option>
+              <option value="4">4x</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="export-filename">Filename</label>
+            <input type="text" id="export-filename" class="text-input" value="ditter-export" placeholder="filename">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-do-export" class="btn btn-primary">Download</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Studio Modal -->
+    <div id="modal-studio" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2>Dither Studio</h2>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="studio-layout">
+            <!-- Studio Left: Matrix Editor -->
+            <div class="studio-editor">
+              <div class="control-group">
+                <label for="studio-preset-select">Preset</label>
+                <select id="studio-preset-select" class="select">
+                  <option value="">-- Current Settings --</option>
+                </select>
+              </div>
+              <h3>Custom Error Diffusion Matrix</h3>
+              <div class="control-group">
+                <label for="studio-matrix-size">Matrix Size</label>
+                <select id="studio-matrix-size" class="select">
+                  <option value="3">3x3</option>
+                  <option value="5">5x5</option>
+                  <option value="7">7x7</option>
+                </select>
+              </div>
+              <div id="studio-matrix-grid" class="matrix-grid"></div>
+              <div class="control-group">
+                <label>Divisor: <span id="studio-divisor">0</span></label>
+              </div>
+
+              <h3>Custom Threshold Map</h3>
+              <div class="control-group">
+                <label for="studio-threshold-size">Map Size</label>
+                <select id="studio-threshold-size" class="select">
+                  <option value="2">2x2</option>
+                  <option value="4">4x4</option>
+                  <option value="8" selected>8x8</option>
+                  <option value="16">16x16</option>
+                </select>
+              </div>
+              <div id="studio-threshold-grid" class="threshold-grid"></div>
+
+              <h3>Effect Stack</h3>
+              <div id="studio-effect-stack" class="effect-stack">
+                <p class="placeholder-text">No effects added yet. Add dither effects below.</p>
+              </div>
+              <div class="control-row">
+                <button id="btn-studio-add-effect" class="btn btn-secondary btn-small">Add Effect</button>
+                <button id="btn-studio-clear-effects" class="btn btn-secondary btn-small">Clear All</button>
+              </div>
+            </div>
+
+            <!-- Studio Right: Preview -->
+            <div class="studio-preview">
+              <canvas id="studio-canvas"></canvas>
+              <div class="control-row">
+                <button id="btn-studio-apply" class="btn btn-primary">Apply to Main</button>
+                <button id="btn-studio-save" class="btn btn-secondary">Save as Preset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Preset Modal -->
+    <div id="modal-save-preset" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-small">
+        <div class="modal-header">
+          <h2>Save Preset</h2>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="control-group">
+            <label for="preset-name">Preset Name</label>
+            <input type="text" id="preset-name" class="text-input" placeholder="My Custom Preset">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-do-save-preset" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden">
+  </div>
+
+  <script src="js/palettes.js"></script>
+  <script src="js/dither-engine.js"></script>
+  <script src="js/canvas.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/studio.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
