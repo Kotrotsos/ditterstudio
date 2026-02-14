@@ -61,17 +61,32 @@ const DitherEngine = (() => {
    * @param {number[][]} palette - Array of [r, g, b]
    * @returns {number[]} Nearest palette color [r, g, b]
    */
+  // Cached palette lookup for nearestColor
+  let _cachedPalette = null;
+  let _cachedLookup = null;
+
   function nearestColor(color, palette) {
-    let minDist = Infinity;
-    let nearest = palette[0];
-    for (let i = 0; i < palette.length; i++) {
-      const d = colorDistanceSq(color, palette[i]);
-      if (d < minDist) {
-        minDist = d;
-        nearest = palette[i];
-      }
+    // Use cached optimized lookup if palette hasn't changed
+    if (palette === _cachedPalette && _cachedLookup) {
+      return _cachedLookup(color);
     }
-    return nearest;
+    // For small palettes, just do linear search (faster than tree overhead)
+    if (palette.length <= 4) {
+      let minDist = Infinity;
+      let nearest = palette[0];
+      for (let i = 0; i < palette.length; i++) {
+        const d = colorDistanceSq(color, palette[i]);
+        if (d < minDist) {
+          minDist = d;
+          nearest = palette[i];
+        }
+      }
+      return nearest;
+    }
+    // Build and cache lookup for larger palettes
+    _cachedPalette = palette;
+    _cachedLookup = createPaletteLookup(palette);
+    return _cachedLookup(color);
   }
 
   /**
@@ -114,6 +129,171 @@ const DitherEngine = (() => {
   }
 
   // =============================================
+  // PERFORMANCE: K-D TREE FOR PALETTE SEARCH
+  // =============================================
+
+  /**
+   * Build a k-d tree from a palette for O(log n) nearest color lookup.
+   * For small palettes (<=4), linear search is faster, so we skip the tree.
+   */
+  function buildKdTree(palette) {
+    if (palette.length <= 4) return null;
+
+    function buildNode(points, depth) {
+      if (points.length === 0) return null;
+      if (points.length === 1) return { color: points[0], left: null, right: null, axis: depth % 3 };
+
+      const axis = depth % 3;
+      points.sort((a, b) => a[axis] - b[axis]);
+      const mid = points.length >> 1;
+
+      return {
+        color: points[mid],
+        axis,
+        left: buildNode(points.slice(0, mid), depth + 1),
+        right: buildNode(points.slice(mid + 1), depth + 1)
+      };
+    }
+
+    return buildNode(palette.map(c => [c[0], c[1], c[2]]), 0);
+  }
+
+  /**
+   * Search the k-d tree for nearest color.
+   */
+  function kdTreeNearest(node, target, best, bestDist) {
+    if (!node) return { best, bestDist };
+
+    const d = colorDistanceSq(target, node.color);
+    if (d < bestDist) {
+      bestDist = d;
+      best = node.color;
+    }
+    if (bestDist === 0) return { best, bestDist };
+
+    const axis = node.axis;
+    const diff = target[axis] - node.color[axis];
+    const near = diff <= 0 ? node.left : node.right;
+    const far = diff <= 0 ? node.right : node.left;
+
+    const result = kdTreeNearest(near, target, best, bestDist);
+    best = result.best;
+    bestDist = result.bestDist;
+
+    // Check if we need to search the far side
+    if (diff * diff < bestDist) {
+      const result2 = kdTreeNearest(far, target, best, bestDist);
+      best = result2.best;
+      bestDist = result2.bestDist;
+    }
+
+    return { best, bestDist };
+  }
+
+  /**
+   * Create a fast nearest-color function for a given palette.
+   * Uses k-d tree for large palettes, linear scan for small ones.
+   * @param {number[][]} palette
+   * @returns {function(number[]): number[]}
+   */
+  function createPaletteLookup(palette) {
+    const tree = buildKdTree(palette);
+
+    if (!tree) {
+      // Small palette: use simple linear search (already fast)
+      return function(color) {
+        let minDist = Infinity;
+        let nearest = palette[0];
+        for (let i = 0; i < palette.length; i++) {
+          const dr = color[0] - palette[i][0];
+          const dg = color[1] - palette[i][1];
+          const db = color[2] - palette[i][2];
+          const d = dr * dr + dg * dg + db * db;
+          if (d < minDist) {
+            minDist = d;
+            nearest = palette[i];
+          }
+        }
+        return nearest;
+      };
+    }
+
+    // Large palette: use k-d tree
+    return function(color) {
+      return kdTreeNearest(tree, color, tree.color, Infinity).best;
+    };
+  }
+
+  // =============================================
+  // PERFORMANCE: LUT FOR ADJUSTMENTS
+  // =============================================
+
+  /**
+   * Build a 256-entry lookup table for adjustment pipeline.
+   * Pre-computes the combined effect of contrast, midtones, highlights
+   * so we only need a single table lookup per channel instead of
+   * multiple floating-point operations.
+   */
+  function buildAdjustmentLUT(adjustments) {
+    const lut = new Uint8Array(256);
+    const contrastVal = adjustments.contrast ?? 50;
+    const midVal = adjustments.midtones ?? 50;
+    const highVal = adjustments.highlights ?? 50;
+
+    const needContrast = contrastVal !== 50;
+    const needMid = midVal !== 50;
+
+    const factor = needContrast
+      ? Math.tan(((contrastVal / 100) * 0.98 + 0.01) * Math.PI / 2)
+      : 1;
+    const gamma = needMid
+      ? (midVal < 50 ? 1 + (50 - midVal) / 50 * 2 : 1 / (1 + (midVal - 50) / 50 * 2))
+      : 1;
+
+    for (let v = 0; v < 256; v++) {
+      let val = v / 255;
+
+      // Contrast
+      if (needContrast) {
+        val = (val - 0.5) * factor + 0.5;
+      }
+
+      // Midtones (gamma)
+      if (needMid) {
+        val = Math.max(0, Math.min(1, val));
+        val = Math.pow(val, gamma);
+      }
+
+      lut[v] = Math.max(0, Math.min(255, Math.round(val * 255)));
+    }
+
+    return lut;
+  }
+
+  // =============================================
+  // PERFORMANCE: MEMORY POOL
+  // =============================================
+
+  const memoryPool = {
+    buffers: [],
+    get(size) {
+      for (let i = 0; i < this.buffers.length; i++) {
+        if (this.buffers[i].length >= size) {
+          const buf = this.buffers.splice(i, 1)[0];
+          if (buf.length === size) return buf;
+          return new Uint8ClampedArray(buf.buffer, 0, size);
+        }
+      }
+      return new Uint8ClampedArray(size);
+    },
+    release(buf) {
+      if (this.buffers.length < 8) {
+        this.buffers.push(buf);
+      }
+    }
+  };
+
+  // =============================================
   // SHARED ALGORITHM HELPERS
   // =============================================
 
@@ -128,9 +308,10 @@ const DitherEngine = (() => {
    * @param {boolean} serpentine - Alternate scan direction per row
    * @returns {{ data: Uint8ClampedArray, width: number, height: number }}
    */
-  function errorDiffuse(imageData, palette, kernel, divisor, serpentine) {
+  function errorDiffuse(imageData, palette, kernel, divisor, serpentine, lookup) {
     const { width, height } = imageData;
     const data = new Uint8ClampedArray(imageData.data);
+    const findNearest = lookup || createPaletteLookup(palette);
     // Use float buffer for error accumulation
     const buf = new Float32Array(width * height * 3);
     for (let i = 0, j = 0; i < data.length; i += 4, j += 3) {
@@ -138,6 +319,15 @@ const DitherEngine = (() => {
       buf[j + 1] = data[i + 1];
       buf[j + 2] = data[i + 2];
     }
+
+    // Pre-compute kernel weights divided by divisor
+    const kLen = kernel.length;
+    const kWeights = new Float32Array(kLen);
+    for (let k = 0; k < kLen; k++) {
+      kWeights[k] = kernel[k].w / divisor;
+    }
+    // Temp array to avoid GC
+    const colorTmp = [0, 0, 0];
 
     for (let y = 0; y < height; y++) {
       const leftToRight = !serpentine || (y & 1) === 0;
@@ -151,7 +341,8 @@ const DitherEngine = (() => {
         const oldG = buf[bi + 1];
         const oldB = buf[bi + 2];
 
-        const nc = nearestColor([oldR, oldG, oldB], palette);
+        colorTmp[0] = oldR; colorTmp[1] = oldG; colorTmp[2] = oldB;
+        const nc = findNearest(colorTmp);
         const pi = (y * width + x) * 4;
         data[pi] = nc[0];
         data[pi + 1] = nc[1];
@@ -161,13 +352,13 @@ const DitherEngine = (() => {
         const errG = oldG - nc[1];
         const errB = oldB - nc[2];
 
-        for (let k = 0; k < kernel.length; k++) {
+        for (let k = 0; k < kLen; k++) {
           const dx = leftToRight ? kernel[k].dx : -kernel[k].dx;
           const dy = kernel[k].dy;
           const nx = x + dx;
           const ny = y + dy;
           if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-            const w = kernel[k].w / divisor;
+            const w = kWeights[k];
             const ni = (ny * width + nx) * 3;
             buf[ni] += errR * w;
             buf[ni + 1] += errG * w;
@@ -191,18 +382,29 @@ const DitherEngine = (() => {
    * @param {number} spread - How much the threshold pattern influences output
    * @returns {{ data: Uint8ClampedArray, width: number, height: number }}
    */
-  function orderedDither(imageData, palette, matrix, matSize, maxVal, spread) {
+  function orderedDither(imageData, palette, matrix, matSize, maxVal, spread, lookup) {
     const { width, height } = imageData;
     const data = new Uint8ClampedArray(imageData.data);
+    const findNearest = lookup || createPaletteLookup(palette);
+    const colorTmp = [0, 0, 0];
+
+    // Pre-compute threshold values for the matrix
+    const thresholdLut = new Float32Array(matSize * matSize);
+    for (let my = 0; my < matSize; my++) {
+      for (let mx = 0; mx < matSize; mx++) {
+        thresholdLut[my * matSize + mx] = ((matrix[my][mx] + 0.5) / maxVal - 0.5) * spread * 255;
+      }
+    }
 
     for (let y = 0; y < height; y++) {
+      const matRow = y % matSize;
       for (let x = 0; x < width; x++) {
         const i = (y * width + x) * 4;
-        const threshold = ((matrix[y % matSize][x % matSize] + 0.5) / maxVal - 0.5) * spread * 255;
-        const r = clamp(Math.round(data[i] + threshold), 0, 255);
-        const g = clamp(Math.round(data[i + 1] + threshold), 0, 255);
-        const b = clamp(Math.round(data[i + 2] + threshold), 0, 255);
-        const nc = nearestColor([r, g, b], palette);
+        const threshold = thresholdLut[matRow * matSize + (x % matSize)];
+        colorTmp[0] = clamp(Math.round(data[i] + threshold), 0, 255);
+        colorTmp[1] = clamp(Math.round(data[i + 1] + threshold), 0, 255);
+        colorTmp[2] = clamp(Math.round(data[i + 2] + threshold), 0, 255);
+        const nc = findNearest(colorTmp);
         data[i] = nc[0];
         data[i + 1] = nc[1];
         data[i + 2] = nc[2];
@@ -301,48 +503,48 @@ const DitherEngine = (() => {
     const result = copyImageData(imageData);
     const data = result.data;
     const len = data.length;
-
-    // Invert
-    if (adjustments.invert) {
-      for (let i = 0; i < len; i += 4) {
-        data[i] = 255 - data[i];
-        data[i + 1] = 255 - data[i + 1];
-        data[i + 2] = 255 - data[i + 2];
-      }
-    }
-
-    // Contrast: map 0-100 to factor. 50 = 1.0 (no change).
+    const doInvert = adjustments.invert;
     const contrastVal = adjustments.contrast ?? 50;
-    if (contrastVal !== 50) {
-      const factor = Math.tan(((contrastVal / 100) * 0.98 + 0.01) * Math.PI / 2);
-      for (let i = 0; i < len; i += 4) {
-        data[i] = clamp(Math.round(((data[i] / 255 - 0.5) * factor + 0.5) * 255), 0, 255);
-        data[i + 1] = clamp(Math.round(((data[i + 1] / 255 - 0.5) * factor + 0.5) * 255), 0, 255);
-        data[i + 2] = clamp(Math.round(((data[i + 2] / 255 - 0.5) * factor + 0.5) * 255), 0, 255);
-      }
-    }
-
-    // Midtones: gamma adjustment. 50 = gamma 1.0.
     const midVal = adjustments.midtones ?? 50;
-    if (midVal !== 50) {
-      const gamma = midVal < 50
-        ? 1 + (50 - midVal) / 50 * 2
-        : 1 / (1 + (midVal - 50) / 50 * 2);
-      for (let i = 0; i < len; i += 4) {
-        data[i] = clamp(Math.round(Math.pow(data[i] / 255, gamma) * 255), 0, 255);
-        data[i + 1] = clamp(Math.round(Math.pow(data[i + 1] / 255, gamma) * 255), 0, 255);
-        data[i + 2] = clamp(Math.round(Math.pow(data[i + 2] / 255, gamma) * 255), 0, 255);
-      }
-    }
-
-    // Highlights: brighten/darken highlights. 50 = no change.
     const highVal = adjustments.highlights ?? 50;
-    if (highVal !== 50) {
-      const shift = (highVal - 50) / 50;
+
+    const needLut = contrastVal !== 50 || midVal !== 50;
+    const needHighlights = highVal !== 50;
+
+    // Fast path: use LUT for contrast + midtones (single pass instead of two)
+    if (needLut || doInvert) {
+      const lut = needLut ? buildAdjustmentLUT(adjustments) : null;
+      const highlightShift = needHighlights ? (highVal - 50) / 50 : 0;
+
       for (let i = 0; i < len; i += 4) {
-        const lum = luminance(data[i], data[i + 1], data[i + 2]) / 255;
+        let r = data[i], g = data[i + 1], b = data[i + 2];
+
+        // Invert
+        if (doInvert) { r = 255 - r; g = 255 - g; b = 255 - b; }
+
+        // Contrast + Midtones via LUT
+        if (lut) { r = lut[r]; g = lut[g]; b = lut[b]; }
+
+        // Highlights (needs per-pixel luminance check)
+        if (needHighlights) {
+          const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          if (lum > 0.5) {
+            const amount = (lum - 0.5) * 2 * highlightShift * 60;
+            r = clamp(Math.round(r + amount), 0, 255);
+            g = clamp(Math.round(g + amount), 0, 255);
+            b = clamp(Math.round(b + amount), 0, 255);
+          }
+        }
+
+        data[i] = r; data[i + 1] = g; data[i + 2] = b;
+      }
+    } else if (needHighlights) {
+      // Only highlights, no LUT needed
+      const highlightShift = (highVal - 50) / 50;
+      for (let i = 0; i < len; i += 4) {
+        const lum = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
         if (lum > 0.5) {
-          const amount = (lum - 0.5) * 2 * shift * 60;
+          const amount = (lum - 0.5) * 2 * highlightShift * 60;
           data[i] = clamp(Math.round(data[i] + amount), 0, 255);
           data[i + 1] = clamp(Math.round(data[i + 1] + amount), 0, 255);
           data[i + 2] = clamp(Math.round(data[i + 2] + amount), 0, 255);
@@ -584,7 +786,7 @@ const DitherEngine = (() => {
             { dx: 0, dy: 1, w: 5 },
             { dx: 1, dy: 1, w: 1 }
           ];
-          return errorDiffuse(imageData, palette, kernel, 16, serpentine);
+          return errorDiffuse(imageData, palette, kernel, 16, serpentine, options._paletteLookup);
         }
       },
 
@@ -614,7 +816,7 @@ const DitherEngine = (() => {
             { dx: -2, dy: 1, w: 3 }, { dx: -1, dy: 1, w: 5 }, { dx: 0, dy: 1, w: 7 }, { dx: 1, dy: 1, w: 5 }, { dx: 2, dy: 1, w: 3 },
             { dx: -2, dy: 2, w: 1 }, { dx: -1, dy: 2, w: 3 }, { dx: 0, dy: 2, w: 5 }, { dx: 1, dy: 2, w: 3 }, { dx: 2, dy: 2, w: 1 }
           ];
-          return errorDiffuse(imageData, palette, kernel, 48, serpentine);
+          return errorDiffuse(imageData, palette, kernel, 48, serpentine, options._paletteLookup);
         }
       },
 
@@ -642,7 +844,7 @@ const DitherEngine = (() => {
             { dx: -2, dy: 1, w: 2 }, { dx: -1, dy: 1, w: 4 }, { dx: 0, dy: 1, w: 8 }, { dx: 1, dy: 1, w: 4 }, { dx: 2, dy: 1, w: 2 },
             { dx: -2, dy: 2, w: 1 }, { dx: -1, dy: 2, w: 2 }, { dx: 0, dy: 2, w: 4 }, { dx: 1, dy: 2, w: 2 }, { dx: 2, dy: 2, w: 1 }
           ];
-          return errorDiffuse(imageData, palette, kernel, 42, serpentine);
+          return errorDiffuse(imageData, palette, kernel, 42, serpentine, options._paletteLookup);
         }
       },
 
@@ -668,7 +870,7 @@ const DitherEngine = (() => {
             { dx: 1, dy: 0, w: 8 }, { dx: 2, dy: 0, w: 4 },
             { dx: -2, dy: 1, w: 2 }, { dx: -1, dy: 1, w: 4 }, { dx: 0, dy: 1, w: 8 }, { dx: 1, dy: 1, w: 4 }, { dx: 2, dy: 1, w: 2 }
           ];
-          return errorDiffuse(imageData, palette, kernel, 32, serpentine);
+          return errorDiffuse(imageData, palette, kernel, 32, serpentine, options._paletteLookup);
         }
       },
 
@@ -696,7 +898,7 @@ const DitherEngine = (() => {
             { dx: -2, dy: 1, w: 2 }, { dx: -1, dy: 1, w: 4 }, { dx: 0, dy: 1, w: 5 }, { dx: 1, dy: 1, w: 4 }, { dx: 2, dy: 1, w: 2 },
             { dx: -1, dy: 2, w: 2 }, { dx: 0, dy: 2, w: 3 }, { dx: 1, dy: 2, w: 2 }
           ];
-          return errorDiffuse(imageData, palette, kernel, 32, serpentine);
+          return errorDiffuse(imageData, palette, kernel, 32, serpentine, options._paletteLookup);
         }
       },
 
@@ -722,7 +924,7 @@ const DitherEngine = (() => {
             { dx: 1, dy: 0, w: 4 }, { dx: 2, dy: 0, w: 3 },
             { dx: -2, dy: 1, w: 1 }, { dx: -1, dy: 1, w: 2 }, { dx: 0, dy: 1, w: 3 }, { dx: 1, dy: 1, w: 2 }, { dx: 2, dy: 1, w: 1 }
           ];
-          return errorDiffuse(imageData, palette, kernel, 16, serpentine);
+          return errorDiffuse(imageData, palette, kernel, 16, serpentine, options._paletteLookup);
         }
       },
 
@@ -748,7 +950,7 @@ const DitherEngine = (() => {
             { dx: 1, dy: 0, w: 2 },
             { dx: -1, dy: 1, w: 1 }, { dx: 0, dy: 1, w: 1 }
           ];
-          return errorDiffuse(imageData, palette, kernel, 4, serpentine);
+          return errorDiffuse(imageData, palette, kernel, 4, serpentine, options._paletteLookup);
         }
       },
 
@@ -779,7 +981,7 @@ const DitherEngine = (() => {
             { dx: -1, dy: 1, w: 1 }, { dx: 0, dy: 1, w: 1 }, { dx: 1, dy: 1, w: 1 },
             { dx: 0, dy: 2, w: 1 }
           ];
-          return errorDiffuse(imageData, palette, kernel, 8, serpentine);
+          return errorDiffuse(imageData, palette, kernel, 8, serpentine, options._paletteLookup);
         }
       },
 
@@ -808,7 +1010,7 @@ const DitherEngine = (() => {
             { dx: -3, dy: 1, w: 12 }, { dx: -1, dy: 1, w: 26 }, { dx: 1, dy: 1, w: 30 }, { dx: 3, dy: 1, w: 16 },
             { dx: -2, dy: 2, w: 12 }, { dx: 0, dy: 2, w: 26 }, { dx: 2, dy: 2, w: 12 }
           ];
-          return errorDiffuse(imageData, palette, kernel, 200, false);
+          return errorDiffuse(imageData, palette, kernel, 200, false, options._paletteLookup);
         }
       }
     },
@@ -843,7 +1045,7 @@ const DitherEngine = (() => {
         fn: function(imageData, palette, options = {}) {
           const spread = options.spread ?? 1;
           const matrix = [[0, 2], [3, 1]];
-          return orderedDither(imageData, palette, matrix, 2, 4, spread);
+          return orderedDither(imageData, palette, matrix, 2, 4, spread, options._paletteLookup);
         }
       },
 
@@ -870,7 +1072,7 @@ const DitherEngine = (() => {
         fn: function(imageData, palette, options = {}) {
           const spread = options.spread ?? 1;
           const matrix = generateBayerMatrix(2);
-          return orderedDither(imageData, palette, matrix, 4, 16, spread);
+          return orderedDither(imageData, palette, matrix, 4, 16, spread, options._paletteLookup);
         }
       },
 
@@ -894,7 +1096,7 @@ const DitherEngine = (() => {
         fn: function(imageData, palette, options = {}) {
           const spread = options.spread ?? 1;
           const matrix = generateBayerMatrix(3);
-          return orderedDither(imageData, palette, matrix, 8, 64, spread);
+          return orderedDither(imageData, palette, matrix, 8, 64, spread, options._paletteLookup);
         }
       },
 
@@ -914,7 +1116,7 @@ const DitherEngine = (() => {
         fn: function(imageData, palette, options = {}) {
           const spread = options.spread ?? 1;
           const matrix = generateBayerMatrix(4);
-          return orderedDither(imageData, palette, matrix, 16, 256, spread);
+          return orderedDither(imageData, palette, matrix, 16, 256, spread, options._paletteLookup);
         }
       },
 
@@ -946,7 +1148,7 @@ const DitherEngine = (() => {
             [11, 3, 2, 8],
             [15, 10, 9, 14]
           ];
-          return orderedDither(imageData, palette, matrix, 4, 16, spread);
+          return orderedDither(imageData, palette, matrix, 4, 16, spread, options._paletteLookup);
         }
       },
 
@@ -982,7 +1184,7 @@ const DitherEngine = (() => {
           for (let i = 0; i < entries.length; i++) {
             matrix[entries[i].y][entries[i].x] = i;
           }
-          return orderedDither(imageData, palette, matrix, size, size * size, spread);
+          return orderedDither(imageData, palette, matrix, size, size * size, spread, options._paletteLookup);
         }
       }
     },
@@ -1410,7 +1612,7 @@ const DitherEngine = (() => {
             }
           }
 
-          return orderedDither(imageData, palette, tex, texSize, totalPixels, spread);
+          return orderedDither(imageData, palette, tex, texSize, totalPixels, spread, options._paletteLookup);
         }
       },
 
@@ -2408,6 +2610,9 @@ const DitherEngine = (() => {
     const originalWidth = sourceImageData.width;
     const originalHeight = sourceImageData.height;
 
+    // Build optimized palette lookup once (k-d tree for large palettes)
+    const paletteLookup = createPaletteLookup(params.palette);
+
     // 1. Apply adjustments (contrast, midtones, highlights, invert)
     let processed = applyAdjustments(sourceImageData, {
       contrast: params.contrast ?? 50,
@@ -2452,13 +2657,14 @@ const DitherEngine = (() => {
       lineScale: lineScale,
       smoothing: smoothing,
       depth: depth,
-      // Map lineScale to algorithm-specific size params
       cellSize: Math.max(2, Math.round(8 * lineScale)),
       lineSpacing: Math.max(2, Math.round(4 * lineScale)),
       dotSize: Math.max(2, Math.round(6 * lineScale)),
       pixelSize: Math.max(2, Math.round(8 * lineScale)),
       spacing: Math.max(2, Math.round(8 * lineScale)),
-      spread: Math.max(0.2, lineScale)
+      spread: Math.max(0.2, lineScale),
+      // Pass optimized lookup to algorithms
+      _paletteLookup: paletteLookup
     };
 
     let dithered = algo.fn(scaledDown, params.palette, algoOptions);
@@ -2566,6 +2772,9 @@ const DitherEngine = (() => {
     getCategoryName,
     getAlgorithmsInCategory,
     getAlgorithm,
+
+    // Performance
+    createPaletteLookup,
 
     // Main processing
     process,

@@ -80,8 +80,18 @@ const DitterCanvas = (() => {
   function handleWorkerMessage(e) {
     const { type, data } = e.data;
 
+    if (type === 'gpu-status') {
+      // WebGL availability notification from worker, ignore
+      return;
+    }
+
     if (type === 'result') {
-      resultImageData = data;
+      // Reconstruct Uint8ClampedArray from transferred ArrayBuffer
+      resultImageData = {
+        data: new Uint8ClampedArray(data.data),
+        width: data.width,
+        height: data.height
+      };
       render();
       isProcessing = false;
       if (onProcessingEnd) onProcessingEnd();
@@ -302,16 +312,17 @@ const DitterCanvas = (() => {
     if (onProcessingStart) onProcessingStart();
 
     if (worker) {
-      // Process in worker
+      // Process in worker - use transferable for zero-copy
+      const buffer = sourceImageData.data.buffer.slice(0);
       worker.postMessage({
         type: 'process',
         imageData: {
-          data: sourceImageData.data.buffer.slice(0),
+          data: buffer,
           width: sourceImageData.width,
           height: sourceImageData.height
         },
         params
-      }, []);
+      }, [buffer]);
     } else {
       // Fallback: process on main thread
       try {
