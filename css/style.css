@@ -661,8 +661,9 @@ input[type="checkbox"]:checked::after {
 }
 
 .modal-large {
-  width: 900px;
-  height: 80vh;
+  width: 90vw;
+  max-width: 1200px;
+  height: 85vh;
 }
 
 .modal-small {
@@ -724,7 +725,8 @@ input[type="checkbox"]:checked::after {
 }
 
 .studio-editor {
-  flex: 1;
+  width: 420px;
+  flex-shrink: 0;
   overflow-y: auto;
 }
 
@@ -741,11 +743,12 @@ input[type="checkbox"]:checked::after {
 }
 
 .studio-preview {
-  width: 320px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 300px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  cursor: grab;
 }
 
 #studio-canvas {

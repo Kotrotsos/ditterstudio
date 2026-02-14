@@ -328,6 +328,7 @@ const DitterApp = (() => {
     document.getElementById('btn-studio').addEventListener('click', () => {
       DitterUI.showModal('modal-studio');
       DitterStudio.populatePresets();
+      DitterStudio.resetView();
       // Slight delay to let the modal render before measuring canvas container
       requestAnimationFrame(() => DitterStudio.updatePreview());
     });

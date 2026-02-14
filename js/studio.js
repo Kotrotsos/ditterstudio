@@ -31,6 +31,17 @@ const DitterStudio = (() => {
   let previewTimer = null;
   const PREVIEW_DELAY = 150;
 
+  // Zoom and pan state for studio preview
+  let studioZoom = 1;
+  let studioPanX = 0;
+  let studioPanY = 0;
+  let isPanning = false;
+  let lastMouseX = 0;
+  let lastMouseY = 0;
+
+  // Cached result for re-rendering on zoom/pan
+  let cachedPreviewData = null;
+
   /**
    * Initialize the studio.
    */
@@ -44,6 +55,7 @@ const DitterStudio = (() => {
     initThresholdGrid(8);
     setupEventListeners();
     setupTabs();
+    setupPreviewPanZoom();
 
     // Initialize pattern designer if available
     if (typeof DitterPatternDesigner !== 'undefined') {
@@ -51,6 +63,7 @@ const DitterStudio = (() => {
       DitterPatternDesigner.setupPaintTab(document.getElementById('studio-tab-paint'));
       DitterPatternDesigner.setupShapeTab(document.getElementById('studio-tab-shape'));
       DitterPatternDesigner.setupWaveTab(document.getElementById('studio-tab-wave'));
+      DitterPatternDesigner.setOnChange(() => schedulePreviewForActiveTab());
     }
   }
 
@@ -100,7 +113,15 @@ const DitterStudio = (() => {
         if (!sourceData) return;
         const uiSettings = DitterUI.getSettings();
         const palette = DitterPalettes.getColors(uiSettings.paletteCategory, uiSettings.palette);
-        DitterPatternDesigner.updatePreview(sourceData, palette, studioCanvas, studioCtx, renderToCanvas);
+        const thresholdMap = DitterPatternDesigner.getThresholdMap();
+        if (thresholdMap) {
+          try {
+            const result = DitherEngine.processCustomThreshold(sourceData, palette, thresholdMap);
+            if (result) renderToCanvas(result);
+          } catch (e) {
+            console.warn('Studio pattern preview error:', e);
+          }
+        }
       }
     }, PREVIEW_DELAY);
   }
@@ -381,29 +402,110 @@ const DitterStudio = (() => {
     });
   }
 
+  // --- Preview Pan/Zoom ---
+
+  function setupPreviewPanZoom() {
+    if (!studioCanvas) return;
+    const container = studioCanvas.parentElement;
+
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      const newZoom = Math.max(0.1, Math.min(32, studioZoom * delta));
+
+      const rect = container.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+
+      const imgCenterX = centerX + studioPanX;
+      const imgCenterY = centerY + studioPanY;
+      const offsetX = mouseX - imgCenterX;
+      const offsetY = mouseY - imgCenterY;
+
+      const ratio = newZoom / studioZoom;
+      studioPanX = studioPanX - offsetX * (ratio - 1);
+      studioPanY = studioPanY - offsetY * (ratio - 1);
+
+      studioZoom = newZoom;
+      renderCachedPreview();
+    }, { passive: false });
+
+    container.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isPanning = true;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      container.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isPanning) return;
+      studioPanX += e.clientX - lastMouseX;
+      studioPanY += e.clientY - lastMouseY;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      renderCachedPreview();
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isPanning) {
+        isPanning = false;
+        if (studioCanvas && studioCanvas.parentElement) {
+          studioCanvas.parentElement.style.cursor = 'grab';
+        }
+      }
+    });
+  }
+
+  function renderCachedPreview() {
+    if (cachedPreviewData) renderToCanvas(cachedPreviewData);
+  }
+
+  function resetStudioZoom() {
+    studioZoom = 1;
+    studioPanX = 0;
+    studioPanY = 0;
+  }
+
+  function zoomFitPreview() {
+    const sourceData = DitterCanvas.getSourceImageData();
+    if (!sourceData || !studioCanvas) return;
+    const container = studioCanvas.parentElement;
+    const rect = container.getBoundingClientRect();
+    const availW = rect.width || 320;
+    const availH = rect.height || 400;
+    const scaleX = (availW - 20) / sourceData.width;
+    const scaleY = (availH - 20) / sourceData.height;
+    studioZoom = Math.min(scaleX, scaleY, 2);
+    studioPanX = 0;
+    studioPanY = 0;
+  }
+
   // --- Preview ---
 
   function renderToCanvas(imgData) {
     if (!studioCanvas || !studioCtx || !imgData) return;
 
+    cachedPreviewData = imgData;
+
     const container = studioCanvas.parentElement;
     const rect = container.getBoundingClientRect();
     const availW = rect.width || 320;
-    const availH = Math.max(200, (rect.height || 400) - 60);
-
-    const scaleX = availW / imgData.width;
-    const scaleY = availH / imgData.height;
-    const scale = Math.min(scaleX, scaleY, 2);
-
-    const displayW = Math.round(imgData.width * scale);
-    const displayH = Math.round(imgData.height * scale);
+    const availH = Math.max(200, (rect.height || 400));
 
     const dpr = window.devicePixelRatio || 1;
-    studioCanvas.width = displayW * dpr;
-    studioCanvas.height = displayH * dpr;
-    studioCanvas.style.width = displayW + 'px';
-    studioCanvas.style.height = displayH + 'px';
+    studioCanvas.width = Math.round(availW * dpr);
+    studioCanvas.height = Math.round(availH * dpr);
+    studioCanvas.style.width = availW + 'px';
+    studioCanvas.style.height = availH + 'px';
     studioCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Clear with theme background
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-tertiary').trim() || '#1a1a1e';
+    studioCtx.fillStyle = bgColor;
+    studioCtx.fillRect(0, 0, availW, availH);
 
     const imageData = new ImageData(
       new Uint8ClampedArray(imgData.data),
@@ -415,11 +517,17 @@ const DitterStudio = (() => {
     const offCtx = offscreen.getContext('2d');
     offCtx.putImageData(imageData, 0, 0);
 
+    const imgW = imgData.width * studioZoom;
+    const imgH = imgData.height * studioZoom;
+    const x = (availW - imgW) / 2 + studioPanX;
+    const y = (availH - imgH) / 2 + studioPanY;
+
     studioCtx.imageSmoothingEnabled = false;
-    studioCtx.drawImage(offscreen, 0, 0, displayW, displayH);
+    studioCtx.drawImage(offscreen, x, y, imgW, imgH);
   }
 
   function updatePreview() {
+    if (!cachedPreviewData) zoomFitPreview();
     if (activeTab !== 'classic') {
       schedulePreviewForActiveTab();
       return;
@@ -549,6 +657,10 @@ const DitterStudio = (() => {
     updateCustomPreview,
     populatePresets,
     isVisible,
-    renderToCanvas
+    renderToCanvas,
+    resetView: () => {
+      cachedPreviewData = null;
+      resetStudioZoom();
+    }
   };
 })();

@@ -10,6 +10,9 @@ const DitterPatternDesigner = (() => {
   // Active tab: 'classic', 'paint', 'shape', 'wave'
   let activeTab = 'classic';
 
+  // Callback for triggering studio preview refresh
+  let onChangeCallback = null;
+
   // Paint mode state
   let paintGrid = null;
   let paintSize = 8;
@@ -31,6 +34,10 @@ const DitterPatternDesigner = (() => {
   // Wave mixer state
   let waveLayers = [];
   let waveContainer = null;
+
+  function notifyChange() {
+    if (onChangeCallback) onChangeCallback();
+  }
 
   // =============================================
   // PAINT MODE
@@ -108,6 +115,7 @@ const DitterPatternDesigner = (() => {
     if (cx >= 0 && cx < paintSize && cy >= 0 && cy < paintSize) {
       paintGrid[cy][cx] = brushValue;
       renderPaintCanvas();
+      notifyChange();
     }
   }
 
@@ -167,6 +175,7 @@ const DitterPatternDesigner = (() => {
     sizeSelect.addEventListener('change', (e) => {
       initPaintGrid(parseInt(e.target.value));
       renderPaintCanvas();
+      notifyChange();
     });
     sizeRow.appendChild(sizeLabel);
     sizeRow.appendChild(sizeSelect);
@@ -201,6 +210,7 @@ const DitterPatternDesigner = (() => {
     clearBtn.addEventListener('click', () => {
       initPaintGrid(paintSize);
       renderPaintCanvas();
+      notifyChange();
     });
     container.appendChild(clearBtn);
 
@@ -426,6 +436,7 @@ const DitterPatternDesigner = (() => {
       shapeType = e.target.value;
       renderShapePreview();
       renderAngleDial();
+      notifyChange();
     });
     shapeRow.appendChild(shapeLabel);
     shapeRow.appendChild(shapeSelect);
@@ -447,6 +458,8 @@ const DitterPatternDesigner = (() => {
     cellSlider.addEventListener('input', () => {
       shapeCellSize = parseInt(cellSlider.value);
       cellReadout.textContent = shapeCellSize;
+      renderShapePreview();
+      notifyChange();
     });
     cellRow.appendChild(cellLabel);
     cellRow.appendChild(cellSlider);
@@ -480,6 +493,7 @@ const DitterPatternDesigner = (() => {
       angleReadout.textContent = deg;
       renderAngleDial();
       renderShapePreview();
+      notifyChange();
     });
     angleRow.appendChild(angleLabel);
     angleRow.appendChild(angleSlider);
@@ -504,6 +518,7 @@ const DitterPatternDesigner = (() => {
       shapeElongation = parseInt(elongSlider.value) / 100;
       elongReadout.textContent = shapeElongation.toFixed(1);
       renderShapePreview();
+      notifyChange();
     });
     elongRow.appendChild(elongLabel);
     elongRow.appendChild(elongSlider);
@@ -655,6 +670,7 @@ const DitterPatternDesigner = (() => {
   function addWaveLayer() {
     waveLayers.push(createDefaultLayer());
     renderWaveLayers();
+    notifyChange();
   }
 
   /**
@@ -664,6 +680,7 @@ const DitterPatternDesigner = (() => {
   function removeWaveLayer(index) {
     waveLayers.splice(index, 1);
     renderWaveLayers();
+    notifyChange();
   }
 
   /**
@@ -743,6 +760,7 @@ const DitterPatternDesigner = (() => {
         sel.addEventListener('change', () => {
           layer.type = sel.value;
           renderLayerPreview(layer, preview);
+          notifyChange();
         });
         return sel;
       });
@@ -760,6 +778,7 @@ const DitterPatternDesigner = (() => {
         });
         sel.addEventListener('change', () => {
           layer.blendMode = sel.value;
+          notifyChange();
         });
         return sel;
       });
@@ -851,6 +870,7 @@ const DitterPatternDesigner = (() => {
       const v = parseFloat(slider.value);
       readout.textContent = step < 1 ? v.toFixed(1) : v;
       onChange(v);
+      notifyChange();
     });
     row.appendChild(lbl);
     row.appendChild(slider);
@@ -882,6 +902,7 @@ const DitterPatternDesigner = (() => {
     clearBtn.addEventListener('click', () => {
       waveLayers = [];
       renderWaveLayers();
+      notifyChange();
     });
 
     btnRow.appendChild(addBtn);
@@ -977,6 +998,7 @@ const DitterPatternDesigner = (() => {
     updatePreview,
     setupPaintTab,
     setupShapeTab,
-    setupWaveTab
+    setupWaveTab,
+    setOnChange: (cb) => { onChangeCallback = cb; }
   };
 })();
