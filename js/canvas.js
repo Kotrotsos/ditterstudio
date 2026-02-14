@@ -31,6 +31,9 @@ const DitterCanvas = (() => {
   // Web Worker
   let worker = null;
 
+  // Theme background color (cached from CSS variable)
+  let bgColor = '#0e0e10';
+
   // Callbacks
   let onProcessingStart = null;
   let onProcessingEnd = null;
@@ -198,7 +201,7 @@ const DitterCanvas = (() => {
     const displayHeight = canvas.height / window.devicePixelRatio;
 
     // Clear
-    ctx.fillStyle = '#0e0e10';
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, displayWidth, displayHeight);
 
     const imgData = resultImageData || sourceImageData;
@@ -424,6 +427,15 @@ const DitterCanvas = (() => {
   }
 
   /**
+   * Update cached background color from CSS variable.
+   * Called when theme changes.
+   */
+  function updateThemeColor() {
+    bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim() || '#0e0e10';
+    render();
+  }
+
+  /**
    * Destroy and clean up.
    */
   function destroy() {
@@ -451,6 +463,7 @@ const DitterCanvas = (() => {
     zoomReset,
     zoomFit,
     getZoom,
+    updateThemeColor,
     destroy
   };
 })();

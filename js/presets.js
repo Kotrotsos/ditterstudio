@@ -169,6 +169,166 @@ const DitterPresets = (() => {
         depth: 0,
         invert: false
       }
+    },
+    'vintage-photo': {
+      name: 'Vintage Photo',
+      settings: {
+        category: 'error-diffusion',
+        algorithm: 'atkinson',
+        paletteCategory: 'themed',
+        palette: 'sepia',
+        scale: 1,
+        lineScale: 1,
+        smoothing: 10,
+        blend: 100,
+        contrast: 60,
+        midtones: 45,
+        highlights: 55,
+        threshold: 50,
+        blur: 1,
+        depth: 0,
+        invert: false
+      }
+    },
+    'comic-book': {
+      name: 'Comic Book',
+      settings: {
+        category: 'halftone',
+        algorithm: 'dot-halftone',
+        paletteCategory: 'default',
+        palette: 'grayscale-4',
+        scale: 1,
+        lineScale: 1.5,
+        smoothing: 0,
+        blend: 100,
+        contrast: 70,
+        midtones: 50,
+        highlights: 50,
+        threshold: 50,
+        blur: 0,
+        depth: 3,
+        invert: false
+      }
+    },
+    'crt-scanline': {
+      name: 'CRT Scanline',
+      settings: {
+        category: 'pattern',
+        algorithm: 'horizontal-lines',
+        paletteCategory: 'retro',
+        palette: 'ega',
+        scale: 1,
+        lineScale: 1,
+        smoothing: 0,
+        blend: 100,
+        contrast: 55,
+        midtones: 50,
+        highlights: 50,
+        threshold: 50,
+        blur: 1,
+        depth: 0,
+        invert: false
+      }
+    },
+    'thermal-camera': {
+      name: 'Thermal Camera',
+      settings: {
+        category: 'threshold',
+        algorithm: 'multi-level',
+        paletteCategory: 'modern',
+        palette: 'sunset',
+        scale: 2,
+        lineScale: 1,
+        smoothing: 0,
+        blend: 100,
+        contrast: 55,
+        midtones: 50,
+        highlights: 50,
+        threshold: 50,
+        blur: 3,
+        depth: 0,
+        invert: false
+      }
+    },
+    'blueprint': {
+      name: 'Blueprint',
+      settings: {
+        category: 'pattern',
+        algorithm: 'crosshatch',
+        paletteCategory: 'themed',
+        palette: 'monochrome-blue',
+        scale: 1,
+        lineScale: 1,
+        smoothing: 0,
+        blend: 100,
+        contrast: 55,
+        midtones: 50,
+        highlights: 50,
+        threshold: 50,
+        blur: 0,
+        depth: 2,
+        invert: true
+      }
+    },
+    'woodcut': {
+      name: 'Woodcut',
+      settings: {
+        category: 'halftone',
+        algorithm: 'line-halftone',
+        paletteCategory: 'default',
+        palette: 'bw',
+        scale: 1,
+        lineScale: 1.2,
+        smoothing: 0,
+        blend: 100,
+        contrast: 75,
+        midtones: 40,
+        highlights: 50,
+        threshold: 50,
+        blur: 0,
+        depth: 4,
+        invert: false
+      }
+    },
+    'matrix-rain': {
+      name: 'Matrix Rain',
+      settings: {
+        category: 'noise',
+        algorithm: 'interleaved-gradient',
+        paletteCategory: 'themed',
+        palette: 'monochrome-green',
+        scale: 1,
+        lineScale: 0.5,
+        smoothing: 0,
+        blend: 100,
+        contrast: 60,
+        midtones: 45,
+        highlights: 50,
+        threshold: 50,
+        blur: 0,
+        depth: 0,
+        invert: false
+      }
+    },
+    'pencil-sketch': {
+      name: 'Pencil Sketch',
+      settings: {
+        category: 'artistic',
+        algorithm: 'sketch',
+        paletteCategory: 'default',
+        palette: 'grayscale-8',
+        scale: 1,
+        lineScale: 1,
+        smoothing: 5,
+        blend: 100,
+        contrast: 55,
+        midtones: 50,
+        highlights: 50,
+        threshold: 50,
+        blur: 0,
+        depth: 3,
+        invert: false
+      }
     }
   };
 

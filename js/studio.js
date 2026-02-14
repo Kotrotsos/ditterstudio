@@ -5,6 +5,8 @@
  * - Define custom error diffusion matrices
  * - Create custom threshold maps
  * - Combine multiple dither effects in a stack
+ * - Paint custom threshold patterns
+ * - Design shapes and wave patterns
  * - Preview and apply results
  */
 
@@ -22,6 +24,9 @@ const DitterStudio = (() => {
   let studioCanvas = null;
   let studioCtx = null;
 
+  // Active tab
+  let activeTab = 'classic';
+
   // Preview debounce
   let previewTimer = null;
   const PREVIEW_DELAY = 150;
@@ -38,6 +43,66 @@ const DitterStudio = (() => {
     initMatrixGrid(3);
     initThresholdGrid(8);
     setupEventListeners();
+    setupTabs();
+
+    // Initialize pattern designer if available
+    if (typeof DitterPatternDesigner !== 'undefined') {
+      DitterPatternDesigner.init();
+      DitterPatternDesigner.setupPaintTab(document.getElementById('studio-tab-paint'));
+      DitterPatternDesigner.setupShapeTab(document.getElementById('studio-tab-shape'));
+      DitterPatternDesigner.setupWaveTab(document.getElementById('studio-tab-wave'));
+    }
+  }
+
+  /**
+   * Set up tab switching.
+   */
+  function setupTabs() {
+    const tabs = document.querySelectorAll('.studio-tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabId = tab.dataset.tab;
+        if (tabId === activeTab) return;
+
+        // Update tab buttons
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        // Update tab panels
+        document.querySelectorAll('.studio-tab-panel').forEach(p => p.classList.remove('active'));
+        const panel = document.getElementById('studio-tab-' + tabId);
+        if (panel) panel.classList.add('active');
+
+        activeTab = tabId;
+
+        // Notify pattern designer
+        if (typeof DitterPatternDesigner !== 'undefined') {
+          DitterPatternDesigner.setActiveTab(tabId);
+        }
+
+        // Update preview for the new tab
+        schedulePreviewForActiveTab();
+      });
+    });
+  }
+
+  /**
+   * Schedule a preview update appropriate for the active tab.
+   */
+  function schedulePreviewForActiveTab() {
+    if (previewTimer) clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => {
+      previewTimer = null;
+      if (activeTab === 'classic') {
+        updateCustomPreview();
+      } else if (typeof DitterPatternDesigner !== 'undefined') {
+        const sourceData = DitterCanvas.getSourceImageData();
+        if (!sourceData) return;
+        const uiSettings = DitterUI.getSettings();
+        const palette = DitterPalettes.getColors(uiSettings.paletteCategory, uiSettings.palette);
+        DitterPatternDesigner.updatePreview(sourceData, palette, studioCanvas, studioCtx, renderToCanvas);
+      }
+    }, PREVIEW_DELAY);
   }
 
   /**
@@ -99,10 +164,8 @@ const DitterStudio = (() => {
     const select = document.getElementById('studio-preset-select');
     if (!select) return;
 
-    // Remember current value
     const current = select.value;
 
-    // Clear and rebuild
     while (select.firstChild) select.removeChild(select.firstChild);
 
     const defaultOpt = document.createElement('option');
@@ -118,34 +181,23 @@ const DitterStudio = (() => {
       select.appendChild(opt);
     });
 
-    // Restore selection if still valid
     select.value = current || '';
   }
 
-  /**
-   * Remove all child nodes from an element safely.
-   * @param {HTMLElement} el
-   */
   function clearChildren(el) {
     while (el.firstChild) {
       el.removeChild(el.firstChild);
     }
   }
 
-  /**
-   * Initialize the error diffusion matrix grid.
-   * @param {number} size - Grid size (3, 5, or 7)
-   */
   function initMatrixGrid(size) {
     matrixSize = size;
     matrixOriginX = Math.floor(size / 2);
     matrixOriginY = 0;
 
-    // Initialize with zeros, set a basic Floyd-Steinberg-like pattern for 3x3
     matrixData = Array.from({ length: size }, () => Array(size).fill(0));
 
     if (size === 3) {
-      // Floyd-Steinberg inspired default
       matrixData[0][2] = 7;
       matrixData[1][0] = 3;
       matrixData[1][1] = 5;
@@ -156,9 +208,6 @@ const DitterStudio = (() => {
     updateDivisor();
   }
 
-  /**
-   * Render the matrix grid to the DOM.
-   */
   function renderMatrixGrid() {
     const container = document.getElementById('studio-matrix-grid');
     if (!container) return;
@@ -175,14 +224,12 @@ const DitterStudio = (() => {
         cell.min = 0;
         cell.max = 99;
 
-        // Mark origin
         if (x === matrixOriginX && y === matrixOriginY) {
           cell.classList.add('origin');
           cell.disabled = true;
           cell.value = '*';
         }
 
-        // Mark cells before origin as disabled (error only goes forward)
         if (y < matrixOriginY || (y === matrixOriginY && x <= matrixOriginX)) {
           if (!(x === matrixOriginX && y === matrixOriginY)) {
             cell.disabled = true;
@@ -204,9 +251,6 @@ const DitterStudio = (() => {
     }
   }
 
-  /**
-   * Update the divisor display.
-   */
   function updateDivisor() {
     let sum = 0;
     for (let y = 0; y < matrixSize; y++) {
@@ -221,24 +265,12 @@ const DitterStudio = (() => {
     }
   }
 
-  /**
-   * Initialize the threshold map grid.
-   * @param {number} size - Grid size (2, 4, 8, or 16)
-   */
   function initThresholdGrid(size) {
     thresholdSize = size;
-
-    // Generate a default Bayer-like threshold map
     thresholdData = generateBayerMatrix(size);
-
     renderThresholdGrid();
   }
 
-  /**
-   * Generate a Bayer dither matrix of given size.
-   * @param {number} n - Must be power of 2
-   * @returns {number[][]}
-   */
   function generateBayerMatrix(n) {
     if (n === 2) {
       return [[0, 2], [3, 1]];
@@ -259,9 +291,6 @@ const DitterStudio = (() => {
     return result;
   }
 
-  /**
-   * Render the threshold grid to the DOM.
-   */
   function renderThresholdGrid() {
     const container = document.getElementById('studio-threshold-grid');
     if (!container) return;
@@ -292,9 +321,6 @@ const DitterStudio = (() => {
     }
   }
 
-  /**
-   * Add an effect to the stack.
-   */
   function addEffect() {
     const categories = DitherEngine.getCategories();
     const firstCat = categories[0];
@@ -312,26 +338,16 @@ const DitterStudio = (() => {
     renderEffectStack();
   }
 
-  /**
-   * Clear all effects from the stack.
-   */
   function clearEffects() {
     effectStack = [];
     renderEffectStack();
   }
 
-  /**
-   * Remove an effect by index.
-   * @param {number} index
-   */
   function removeEffect(index) {
     effectStack.splice(index, 1);
     renderEffectStack();
   }
 
-  /**
-   * Render the effect stack UI.
-   */
   function renderEffectStack() {
     const container = document.getElementById('studio-effect-stack');
     if (!container) return;
@@ -367,17 +383,12 @@ const DitterStudio = (() => {
 
   // --- Preview ---
 
-  /**
-   * Render image data to the studio canvas, properly scaled to fit.
-   * @param {{ data: Uint8ClampedArray, width: number, height: number }} imgData
-   */
   function renderToCanvas(imgData) {
     if (!studioCanvas || !studioCtx || !imgData) return;
 
     const container = studioCanvas.parentElement;
     const rect = container.getBoundingClientRect();
     const availW = rect.width || 320;
-    // Leave room for buttons below
     const availH = Math.max(200, (rect.height || 400) - 60);
 
     const scaleX = availW / imgData.width;
@@ -387,7 +398,6 @@ const DitterStudio = (() => {
     const displayW = Math.round(imgData.width * scale);
     const displayH = Math.round(imgData.height * scale);
 
-    // Set canvas bitmap size
     const dpr = window.devicePixelRatio || 1;
     studioCanvas.width = displayW * dpr;
     studioCanvas.height = displayH * dpr;
@@ -395,14 +405,12 @@ const DitterStudio = (() => {
     studioCanvas.style.height = displayH + 'px';
     studioCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Create ImageData from raw pixels
     const imageData = new ImageData(
       new Uint8ClampedArray(imgData.data),
       imgData.width,
       imgData.height
     );
 
-    // Draw via offscreen canvas for scaling
     const offscreen = new OffscreenCanvas(imgData.width, imgData.height);
     const offCtx = offscreen.getContext('2d');
     offCtx.putImageData(imageData, 0, 0);
@@ -411,20 +419,17 @@ const DitterStudio = (() => {
     studioCtx.drawImage(offscreen, 0, 0, displayW, displayH);
   }
 
-  /**
-   * Update the studio preview with the current main canvas result.
-   * Called when Studio opens or when main processing completes while Studio is visible.
-   */
   function updatePreview() {
+    if (activeTab !== 'classic') {
+      schedulePreviewForActiveTab();
+      return;
+    }
     const resultData = DitterCanvas.getResultImageData();
     if (resultData) {
       renderToCanvas(resultData);
     }
   }
 
-  /**
-   * Update the studio preview with custom matrix/threshold processing.
-   */
   function updateCustomPreview() {
     const sourceData = DitterCanvas.getSourceImageData();
     if (!sourceData) return;
@@ -454,9 +459,6 @@ const DitterStudio = (() => {
     }
   }
 
-  /**
-   * Schedule a debounced custom preview update.
-   */
   function scheduleCustomPreview() {
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = setTimeout(() => {
@@ -465,27 +467,31 @@ const DitterStudio = (() => {
     }, PREVIEW_DELAY);
   }
 
-  /**
-   * Check if the Studio modal is currently visible.
-   * @returns {boolean}
-   */
   function isVisible() {
     const modal = document.getElementById('modal-studio');
     return modal && !modal.classList.contains('hidden');
   }
 
-  /**
-   * Apply the studio result to the main canvas.
-   */
   function applyToMain() {
     const sourceData = DitterCanvas.getSourceImageData();
     if (!sourceData) return;
 
-    const customMatrix = getMatrixData();
-    const customThreshold = getThresholdData();
-
     const uiSettings = DitterUI.getSettings();
     const palette = DitterPalettes.getColors(uiSettings.paletteCategory, uiSettings.palette);
+
+    // If a designer tab is active, use its threshold map
+    if (activeTab !== 'classic' && typeof DitterPatternDesigner !== 'undefined') {
+      const thresholdMap = DitterPatternDesigner.getThresholdMap();
+      if (thresholdMap) {
+        const result = DitherEngine.processCustomThreshold(sourceData, palette, thresholdMap);
+        if (result) DitterCanvas.setResultImageData(result);
+        return;
+      }
+    }
+
+    // Classic mode
+    const customMatrix = getMatrixData();
+    const customThreshold = getThresholdData();
 
     let result;
     if (customMatrix.hasWeights) {
@@ -503,9 +509,6 @@ const DitterStudio = (() => {
     DitterCanvas.setResultImageData(result);
   }
 
-  /**
-   * Save the current studio config as a preset.
-   */
   function saveAsPreset() {
     const event = new CustomEvent('studio-save-preset', {
       detail: {
@@ -517,9 +520,6 @@ const DitterStudio = (() => {
     document.dispatchEvent(event);
   }
 
-  /**
-   * Get the current matrix configuration.
-   */
   function getMatrixData() {
     let divisor = 0;
     for (let y = 0; y < matrixSize; y++) {
@@ -537,10 +537,6 @@ const DitterStudio = (() => {
     };
   }
 
-  /**
-   * Get the current threshold map data.
-   * @returns {number[][]}
-   */
   function getThresholdData() {
     return thresholdData.map(row => [...row]);
   }
@@ -552,6 +548,7 @@ const DitterStudio = (() => {
     updatePreview,
     updateCustomPreview,
     populatePresets,
-    isVisible
+    isVisible,
+    renderToCanvas
   };
 })();

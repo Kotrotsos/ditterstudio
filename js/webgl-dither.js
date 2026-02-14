@@ -417,6 +417,134 @@ const WebGLDither = (() => {
         }
         fragColor = vec4(sum / count, 1.0);
       }
+    `,
+
+    // --- NEW: HALFTONE SQUARE ---
+    'halftone-square': FRAG_HEADER + `
+      uniform float u_cellSize;
+      uniform float u_angle;
+      void main() {
+        vec3 color = getSourceColor();
+        vec2 px = gl_FragCoord.xy;
+        float ca = cos(u_angle), sa = sin(u_angle);
+        vec2 rotated = vec2(px.x * ca - px.y * sa, px.x * sa + px.y * ca);
+        vec2 cell = mod(rotated, u_cellSize) - u_cellSize * 0.5;
+        float dist = max(abs(cell.x), abs(cell.y)) / (u_cellSize * 0.5);
+        float lum = luminance(color);
+        float radius = 1.0 - lum;
+        vec3 dark = nearestPaletteColor(vec3(0.0));
+        vec3 light = nearestPaletteColor(vec3(1.0));
+        fragColor = vec4(dist <= radius ? dark : light, 1.0);
+      }
+    `,
+
+    // --- NEW: HALFTONE STAR ---
+    'halftone-star': FRAG_HEADER + `
+      uniform float u_cellSize;
+      uniform float u_angle;
+      void main() {
+        vec3 color = getSourceColor();
+        vec2 px = gl_FragCoord.xy;
+        float ca = cos(u_angle), sa = sin(u_angle);
+        vec2 rotated = vec2(px.x * ca - px.y * sa, px.x * sa + px.y * ca);
+        vec2 cell = mod(rotated, u_cellSize) - u_cellSize * 0.5;
+        float r = length(cell) / (u_cellSize * 0.5);
+        float a = atan(cell.y, cell.x);
+        float starDist = r * (1.0 + 0.3 * cos(6.0 * a));
+        float lum = luminance(color);
+        float radius = 1.0 - lum;
+        vec3 dark = nearestPaletteColor(vec3(0.0));
+        vec3 light = nearestPaletteColor(vec3(1.0));
+        fragColor = vec4(starDist <= radius ? dark : light, 1.0);
+      }
+    `,
+
+    // --- NEW: NOISE PERLIN ---
+    'noise-perlin': FRAG_HEADER + `
+      vec2 fade2(vec2 t) { return t * t * t * (t * (t * 6.0 - 15.0) + 10.0); }
+      float hash2d(vec2 p) {
+        vec3 p3 = fract(vec3(p.xyx) * vec3(443.897, 441.423, 437.195));
+        p3 += dot(p3, p3.yzx + 19.19);
+        return fract((p3.x + p3.y) * p3.z) * 2.0 - 1.0;
+      }
+      float grad2(vec2 ip, vec2 fp) {
+        float h = hash2d(ip);
+        float h2 = hash2d(ip + 0.5);
+        return fp.x * h + fp.y * h2;
+      }
+      float perlinNoise(vec2 p) {
+        vec2 ip = floor(p);
+        vec2 fp = fract(p);
+        vec2 u = fade2(fp);
+        float a = grad2(ip, fp);
+        float b = grad2(ip + vec2(1.0, 0.0), fp - vec2(1.0, 0.0));
+        float c = grad2(ip + vec2(0.0, 1.0), fp - vec2(0.0, 1.0));
+        float d = grad2(ip + vec2(1.0, 1.0), fp - vec2(1.0, 1.0));
+        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+      }
+      void main() {
+        vec3 color = getSourceColor();
+        vec2 px = gl_FragCoord.xy;
+        float freq = u_lineScale * 0.05;
+        float noise = perlinNoise(px * freq) * 0.5 + 0.5;
+        float t = (noise - 0.5) * u_spread;
+        vec3 adjusted = clamp(color + t, 0.0, 1.0);
+        fragColor = vec4(nearestPaletteColor(adjusted), 1.0);
+      }
+    `,
+
+    // --- NEW: PATTERN HEX ---
+    'pattern-hex': FRAG_HEADER + `
+      uniform float u_spacing;
+      void main() {
+        vec3 color = getSourceColor();
+        vec2 px = gl_FragCoord.xy;
+        float s = u_spacing;
+        float h = s * 0.866;
+        vec2 a = mod(px, vec2(s * 1.5, h * 2.0));
+        vec2 b = mod(px - vec2(s * 0.75, h), vec2(s * 1.5, h * 2.0));
+        float da = length(a - vec2(s * 0.75, h));
+        float db = length(b - vec2(s * 0.75, h));
+        float dist = min(da, db) / (s * 0.5);
+        float bias = clamp(dist, 0.0, 1.0);
+        float threshold = (bias - 0.5) * u_spread;
+        vec3 adjusted = clamp(color + threshold, 0.0, 1.0);
+        fragColor = vec4(nearestPaletteColor(adjusted), 1.0);
+      }
+    `,
+
+    // --- NEW: PATTERN BRICK ---
+    'pattern-brick': FRAG_HEADER + `
+      uniform float u_spacing;
+      void main() {
+        vec3 color = getSourceColor();
+        vec2 px = gl_FragCoord.xy;
+        float brickW = u_spacing * 2.0;
+        float brickH = u_spacing;
+        float row = floor(px.y / brickH);
+        float offset = mod(row, 2.0) * brickW * 0.5;
+        vec2 cell = vec2(mod(px.x + offset, brickW), mod(px.y, brickH));
+        vec2 center = vec2(brickW * 0.5, brickH * 0.5);
+        float dist = max(abs(cell.x - center.x) / center.x, abs(cell.y - center.y) / center.y);
+        float bias = clamp(dist, 0.0, 1.0);
+        float threshold = (bias - 0.5) * u_spread;
+        vec3 adjusted = clamp(color + threshold, 0.0, 1.0);
+        fragColor = vec4(nearestPaletteColor(adjusted), 1.0);
+      }
+    `,
+
+    // --- NEW: PATTERN WAVE ---
+    'pattern-wave': FRAG_HEADER + `
+      uniform float u_spacing;
+      void main() {
+        vec3 color = getSourceColor();
+        vec2 px = gl_FragCoord.xy;
+        float freq = 6.28318 / u_spacing;
+        float wave = sin(px.y * freq + px.x * 0.1) * 0.5 + 0.5;
+        float threshold = (wave - 0.5) * u_spread;
+        vec3 adjusted = clamp(color + threshold, 0.0, 1.0);
+        fragColor = vec4(nearestPaletteColor(adjusted), 1.0);
+      }
     `
   };
 
@@ -432,12 +560,15 @@ const WebGLDither = (() => {
       'dot-halftone': 'halftone-dot',
       'line-halftone': 'halftone-line',
       'diamond-halftone': 'halftone-diamond',
-      'cross-halftone': 'halftone-cross'
+      'cross-halftone': 'halftone-cross',
+      'square-halftone': 'halftone-square',
+      'star-halftone': 'halftone-star'
     },
     'noise': {
       'random': 'noise-random',
       'white-noise': 'noise-white',
-      'interleaved-gradient': 'noise-ign'
+      'interleaved-gradient': 'noise-ign',
+      'perlin': 'noise-perlin'
     },
     'pattern': {
       'checkerboard': 'pattern-checkerboard',
@@ -445,7 +576,10 @@ const WebGLDither = (() => {
       'vertical-lines': 'pattern-vlines',
       'crosshatch': 'pattern-crosshatch',
       'diagonal-lines': 'pattern-diagonal',
-      'spiral': 'pattern-spiral'
+      'spiral': 'pattern-spiral',
+      'hexagonal': 'pattern-hex',
+      'brick': 'pattern-brick',
+      'wave-sine': 'pattern-wave'
     },
     'threshold': {
       'simple': 'threshold-simple',

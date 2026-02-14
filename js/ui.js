@@ -52,6 +52,9 @@ const DitterUI = (() => {
     bindCheckboxes();
     bindSourceControls();
 
+    // Set up resizable panel
+    setupPanelResize();
+
     // Apply initial state to UI
     applySettingsToUI(settings);
   }
@@ -192,6 +195,55 @@ const DitterUI = (() => {
     while (el.firstChild) {
       el.removeChild(el.firstChild);
     }
+  }
+
+  /**
+   * Set up resizable panel handle.
+   */
+  function setupPanelResize() {
+    const handle = document.getElementById('panel-resize-handle');
+    if (!handle) return;
+
+    // Restore saved width
+    const savedWidth = localStorage.getItem('ditter-panel-width');
+    if (savedWidth) {
+      const w = parseInt(savedWidth);
+      if (w >= 240 && w <= 600) {
+        document.documentElement.style.setProperty('--panel-width', w + 'px');
+      }
+    }
+
+    let startX = 0;
+    let startWidth = 0;
+    let isDragging = false;
+
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      isDragging = true;
+      startX = e.clientX;
+      startWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--panel-width'));
+      handle.classList.add('dragging');
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const delta = startX - e.clientX;
+      const newWidth = Math.max(240, Math.min(600, startWidth + delta));
+      document.documentElement.style.setProperty('--panel-width', newWidth + 'px');
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      handle.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      const currentWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--panel-width'));
+      localStorage.setItem('ditter-panel-width', currentWidth);
+      DitterCanvas.resize();
+    });
   }
 
   /**

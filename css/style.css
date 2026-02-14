@@ -1,5 +1,5 @@
 /* ============================================
-   Ditter - Dark Theme Stylesheet
+   Ditter - Themed Stylesheet
    ============================================ */
 
 /* --- Reset & Base --- */
@@ -40,6 +40,35 @@
   --toolbar-height: 36px;
   --transition-fast: 120ms ease;
   --transition-normal: 200ms ease;
+}
+
+/* --- Light Theme --- */
+:root[data-theme="light"] {
+  --bg-primary: #f5f5f7;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #eeeef0;
+  --bg-elevated: #e4e4e8;
+  --bg-hover: #d8d8de;
+  --border-color: #d0d0d6;
+  --border-light: #c0c0c8;
+  --text-primary: #1a1a1e;
+  --text-secondary: #4a4a56;
+  --text-muted: #8a8a96;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+:root[data-theme="light"] .select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238a8a96' d='M3 5l3 3 3-3z'/%3E%3C/svg%3E");
+}
+
+:root[data-theme="light"] .palette-swatch {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme="light"] .modal-backdrop {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 html, body {
@@ -230,6 +259,35 @@ html, body {
   margin-bottom: 0;
 }
 
+/* --- Panel Resize Handle --- */
+.panel-resize-handle {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 5;
+}
+
+.panel-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--border-light);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.panel-resize-handle:hover::after,
+.panel-resize-handle.dragging::after {
+  opacity: 1;
+}
+
 /* --- Control Panel --- */
 #control-panel {
   width: var(--panel-width);
@@ -397,6 +455,32 @@ html, body {
 .btn-small {
   padding: 4px 8px;
   font-size: 11px;
+}
+
+/* --- Theme Toggle --- */
+.theme-toggle {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.theme-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light);
 }
 
 /* --- Inputs --- */
@@ -778,6 +862,171 @@ input[type="checkbox"]:checked::after {
   background: rgba(239, 68, 68, 0.1);
 }
 
+/* --- Studio Tabs --- */
+.studio-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 12px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 2px;
+}
+
+.studio-tab {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-family);
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.studio-tab:hover {
+  color: var(--text-secondary);
+}
+
+.studio-tab.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.studio-tab-panel {
+  display: none;
+}
+
+.studio-tab-panel.active {
+  display: block;
+}
+
+/* --- Paint Tab --- */
+.paint-canvas-container {
+  display: inline-block;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: crosshair;
+  margin-bottom: 8px;
+}
+
+.paint-canvas-container canvas {
+  display: block;
+  border-radius: var(--radius-md);
+}
+
+.paint-tools {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+/* --- Shape Lab Tab --- */
+.shape-angle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shape-angle-row .control-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.angle-dial {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
+}
+
+.shape-cell-preview {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.shape-cell-preview canvas {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+/* --- Wave Mixer Tab --- */
+.wave-layer {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+.wave-layer:last-child {
+  margin-bottom: 0;
+}
+
+.wave-layer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.wave-layer-header span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.wave-layer-remove {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.wave-layer-remove:hover {
+  color: var(--error);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.wave-layer-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.wave-layer-controls .control-group {
+  margin-bottom: 0;
+}
+
+.wave-layer-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.wave-inline-preview {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
 /* --- Number inputs --- */
 input[type="number"] {
   -moz-appearance: textfield;
@@ -811,6 +1060,10 @@ input[type="number"]::-webkit-inner-spin-button {
     height: 50%;
     border-left: none;
     border-top: 1px solid var(--border-color);
+  }
+
+  .panel-resize-handle {
+    display: none;
   }
 }
 

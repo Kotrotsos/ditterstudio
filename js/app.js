@@ -84,6 +84,9 @@ const DitterApp = (() => {
     // Set up studio button
     setupStudio();
 
+    // Set up theme toggle
+    setupTheme();
+
     // Keyboard shortcuts
     setupKeyboard();
   }
@@ -332,6 +335,29 @@ const DitterApp = (() => {
     // Listen for studio's save-as-preset event
     document.addEventListener('studio-save-preset', () => {
       DitterUI.showModal('modal-save-preset');
+    });
+  }
+
+  /**
+   * Set up light/dark theme toggle.
+   */
+  function setupTheme() {
+    const btn = document.getElementById('btn-theme-toggle');
+    let theme = localStorage.getItem('ditter-theme') || 'dark';
+
+    function applyTheme(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      btn.textContent = t === 'dark' ? 'Lt' : 'Dk';
+      btn.title = t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      DitterCanvas.updateThemeColor();
+    }
+
+    applyTheme(theme);
+
+    btn.addEventListener('click', () => {
+      theme = theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('ditter-theme', theme);
+      applyTheme(theme);
     });
   }
 
