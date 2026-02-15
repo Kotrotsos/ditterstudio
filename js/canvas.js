@@ -392,6 +392,62 @@ const DitterCanvas = (() => {
     return sourceImageData !== null;
   }
 
+  // --- Image Transforms ---
+
+  function flipHorizontal() {
+    if (!sourceImageData) return;
+    const { data, width, height } = sourceImageData;
+    const flipped = new Uint8ClampedArray(data.length);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const srcIdx = (y * width + x) * 4;
+        const dstIdx = (y * width + (width - 1 - x)) * 4;
+        flipped[dstIdx] = data[srcIdx];
+        flipped[dstIdx + 1] = data[srcIdx + 1];
+        flipped[dstIdx + 2] = data[srcIdx + 2];
+        flipped[dstIdx + 3] = data[srcIdx + 3];
+      }
+    }
+    sourceImageData = { data: flipped, width, height };
+    resultImageData = null;
+    render();
+  }
+
+  function flipVertical() {
+    if (!sourceImageData) return;
+    const { data, width, height } = sourceImageData;
+    const flipped = new Uint8ClampedArray(data.length);
+    const rowSize = width * 4;
+    for (let y = 0; y < height; y++) {
+      const srcOff = y * rowSize;
+      const dstOff = (height - 1 - y) * rowSize;
+      flipped.set(data.subarray(srcOff, srcOff + rowSize), dstOff);
+    }
+    sourceImageData = { data: flipped, width, height };
+    resultImageData = null;
+    render();
+  }
+
+  function rotateCW() {
+    if (!sourceImageData) return;
+    const { data, width, height } = sourceImageData;
+    const rotated = new Uint8ClampedArray(data.length);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const srcIdx = (y * width + x) * 4;
+        const dstIdx = (x * height + (height - 1 - y)) * 4;
+        rotated[dstIdx] = data[srcIdx];
+        rotated[dstIdx + 1] = data[srcIdx + 1];
+        rotated[dstIdx + 2] = data[srcIdx + 2];
+        rotated[dstIdx + 3] = data[srcIdx + 3];
+      }
+    }
+    sourceImageData = { data: rotated, width: height, height: width };
+    resultImageData = null;
+    zoomFit();
+    render();
+  }
+
   // --- Zoom Controls ---
 
   function zoomIn() {
@@ -477,6 +533,9 @@ const DitterCanvas = (() => {
     getZoom,
     updateThemeColor,
     resetToOriginal,
+    flipHorizontal,
+    flipVertical,
+    rotateCW,
     destroy
   };
 })();

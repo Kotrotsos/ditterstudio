@@ -329,6 +329,106 @@ const DitterPresets = (() => {
         depth: 3,
         invert: false
       }
+    },
+    'glitch-sort': {
+      name: 'Glitch Sort',
+      settings: {
+        category: 'creative',
+        algorithm: 'pixel-sort',
+        paletteCategory: 'default',
+        palette: 'full-color',
+        scale: 1,
+        lineScale: 1,
+        smoothing: 0,
+        blend: 100,
+        contrast: 60,
+        midtones: 50,
+        highlights: 50,
+        threshold: 30,
+        blur: 0,
+        depth: 0,
+        invert: false
+      }
+    },
+    'turing-pattern': {
+      name: 'Turing Pattern',
+      settings: {
+        category: 'creative',
+        algorithm: 'reaction-diffusion',
+        paletteCategory: 'default',
+        palette: 'bw',
+        scale: 1,
+        lineScale: 1,
+        smoothing: 10,
+        blend: 100,
+        contrast: 55,
+        midtones: 50,
+        highlights: 50,
+        threshold: 50,
+        blur: 1,
+        depth: 0,
+        invert: false
+      }
+    },
+    'dot-stipple': {
+      name: 'Dot Stipple',
+      settings: {
+        category: 'creative',
+        algorithm: 'stipple',
+        paletteCategory: 'default',
+        palette: 'bw',
+        scale: 1,
+        lineScale: 1.5,
+        smoothing: 15,
+        blend: 100,
+        contrast: 50,
+        midtones: 50,
+        highlights: 50,
+        threshold: 50,
+        blur: 1,
+        depth: 0,
+        invert: false
+      }
+    },
+    'flow-art': {
+      name: 'Flow Art',
+      settings: {
+        category: 'creative',
+        algorithm: 'flow-field',
+        paletteCategory: 'default',
+        palette: 'bw',
+        scale: 1,
+        lineScale: 1,
+        smoothing: 10,
+        blend: 100,
+        contrast: 55,
+        midtones: 50,
+        highlights: 50,
+        threshold: 50,
+        blur: 0,
+        depth: 2,
+        invert: false
+      }
+    },
+    'ascii-art': {
+      name: 'ASCII Art',
+      settings: {
+        category: 'creative',
+        algorithm: 'ascii',
+        paletteCategory: 'default',
+        palette: 'bw',
+        scale: 1,
+        lineScale: 1,
+        smoothing: 0,
+        blend: 100,
+        contrast: 55,
+        midtones: 50,
+        highlights: 50,
+        threshold: 50,
+        blur: 0,
+        depth: 0,
+        invert: false
+      }
     }
   };
 

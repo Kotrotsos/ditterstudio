@@ -42,7 +42,8 @@ const WebGLDither = (() => {
     in vec2 a_position;
     out vec2 v_texCoord;
     void main() {
-      gl_Position = vec4(a_position * 2.0 - 1.0, 0.0, 1.0);
+      // Flip Y so (0,0) is top-left to match canvas/texture convention
+      gl_Position = vec4(a_position.x * 2.0 - 1.0, -(a_position.y * 2.0 - 1.0), 0.0, 1.0);
       v_texCoord = a_position;
     }
   `;
@@ -729,19 +730,6 @@ const WebGLDither = (() => {
   function readPixels() {
     const pixels = new Uint8ClampedArray(currentWidth * currentHeight * 4);
     gl.readPixels(0, 0, currentWidth, currentHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-
-    // WebGL Y is flipped, so flip the rows
-    const rowSize = currentWidth * 4;
-    const halfHeight = currentHeight >> 1;
-    const temp = new Uint8ClampedArray(rowSize);
-    for (let y = 0; y < halfHeight; y++) {
-      const top = y * rowSize;
-      const bottom = (currentHeight - 1 - y) * rowSize;
-      temp.set(pixels.subarray(top, top + rowSize));
-      pixels.copyWithin(top, bottom, bottom + rowSize);
-      pixels.set(temp, bottom);
-    }
-
     return pixels;
   }
 

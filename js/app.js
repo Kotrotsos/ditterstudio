@@ -78,8 +78,8 @@ const DitterApp = (() => {
     // Set up export
     setupExport();
 
-    // Set up reset
-    setupReset();
+    // Set up toolbar (flip, rotate, reset)
+    setupToolbar();
 
     // Set up color/gradient input creation
     setupCreateInput();
@@ -165,12 +165,30 @@ const DitterApp = (() => {
   /**
    * Set up export functionality.
    */
-  function setupReset() {
+  function setupToolbar() {
     document.getElementById('btn-reset').addEventListener('click', () => {
       if (!DitterCanvas.hasImage()) return;
       DitterCanvas.resetToOriginal();
       const params = DitterUI.getProcessingParams();
       DitterCanvas.processImage(params);
+    });
+
+    document.getElementById('btn-flip-h').addEventListener('click', () => {
+      if (!DitterCanvas.hasImage()) return;
+      DitterCanvas.flipHorizontal();
+      DitterCanvas.processImage(DitterUI.getProcessingParams());
+    });
+
+    document.getElementById('btn-flip-v').addEventListener('click', () => {
+      if (!DitterCanvas.hasImage()) return;
+      DitterCanvas.flipVertical();
+      DitterCanvas.processImage(DitterUI.getProcessingParams());
+    });
+
+    document.getElementById('btn-rotate').addEventListener('click', () => {
+      if (!DitterCanvas.hasImage()) return;
+      DitterCanvas.rotateCW();
+      DitterCanvas.processImage(DitterUI.getProcessingParams());
     });
   }
 

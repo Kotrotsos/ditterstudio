@@ -3356,6 +3356,971 @@ const DitherEngine = (() => {
           return { data, width, height };
         }
       }
+    },
+
+    // =============================================
+    // CREATIVE / EXPERIMENTAL
+    // =============================================
+    'creative': {
+
+      'pixel-sort': {
+        name: 'Pixel Sort',
+        description: 'Glitch art pixel sorting. Sorts pixel rows by luminance within threshold bands.',
+        fn: function(imageData, palette, options = {}) {
+          const { width, height } = imageData;
+          const src = imageData.data;
+          const data = new Uint8ClampedArray(src.length);
+          const findNearest = options._paletteLookup || createPaletteLookup(palette);
+          const thresh = (options.threshold !== undefined ? options.threshold : 0.5) * 255;
+
+          if (!palette || palette.length === 0) {
+            data.set(src);
+            return { data, width, height };
+          }
+
+          for (let y = 0; y < height; y++) {
+            // Build luminance array for this row
+            const rowLum = new Float32Array(width);
+            for (let x = 0; x < width; x++) {
+              const si = (y * width + x) * 4;
+              rowLum[x] = luminance(src[si], src[si + 1], src[si + 2]);
+            }
+
+            // Find contiguous runs where luminance is in [thresh, 255]
+            let runStart = -1;
+            for (let x = 0; x <= width; x++) {
+              const inBand = x < width && rowLum[x] >= thresh;
+              if (inBand && runStart === -1) {
+                runStart = x;
+              } else if (!inBand && runStart !== -1) {
+                // Sort the run by luminance ascending
+                const indices = [];
+                for (let i = runStart; i < x; i++) indices.push(i);
+                indices.sort((a, b) => rowLum[a] - rowLum[b]);
+
+                // Write sorted pixels
+                for (let j = 0; j < indices.length; j++) {
+                  const srcIdx = (y * width + indices[j]) * 4;
+                  const dstIdx = (y * width + runStart + j) * 4;
+                  const nc = findNearest([src[srcIdx], src[srcIdx + 1], src[srcIdx + 2]]);
+                  data[dstIdx] = nc[0];
+                  data[dstIdx + 1] = nc[1];
+                  data[dstIdx + 2] = nc[2];
+                  data[dstIdx + 3] = src[srcIdx + 3];
+                }
+                runStart = -1;
+              }
+            }
+
+            // Copy non-sorted pixels (below threshold)
+            for (let x = 0; x < width; x++) {
+              const di = (y * width + x) * 4;
+              if (data[di] === 0 && data[di + 1] === 0 && data[di + 2] === 0 && data[di + 3] === 0) {
+                const si = (y * width + x) * 4;
+                const nc = findNearest([src[si], src[si + 1], src[si + 2]]);
+                data[di] = nc[0];
+                data[di + 1] = nc[1];
+                data[di + 2] = nc[2];
+                data[di + 3] = src[si + 3];
+              }
+            }
+          }
+
+          return { data, width, height };
+        }
+      },
+
+      'diffusion-limited': {
+        name: 'DLA Clustering',
+        description: 'DLA clustering. Simulates particle aggregation for organic branching structures.',
+        fn: function(imageData, palette, options = {}) {
+          const { width, height } = imageData;
+          const src = imageData.data;
+          const data = new Uint8ClampedArray(src.length);
+          const findNearest = options._paletteLookup || createPaletteLookup(palette);
+
+          if (!palette || palette.length === 0) {
+            data.set(src);
+            return { data, width, height };
+          }
+
+          const totalPixels = width * height;
+
+          // Build luminance map
+          const lumMap = new Float32Array(totalPixels);
+          for (let i = 0; i < totalPixels; i++) {
+            const si = i * 4;
+            lumMap[i] = luminance(src[si], src[si + 1], src[si + 2]) / 255;
+          }
+
+          // Grid for occupied cells
+          const occupied = new Uint8Array(totalPixels);
+
+          // Seed ~50 random aggregation points
+          const numSeeds = Math.min(50, totalPixels);
+          const rng = (function(seed) {
+            let s = seed | 0;
+            return function() {
+              s = (s * 1664525 + 1013904223) & 0x7fffffff;
+              return s / 0x7fffffff;
+            };
+          })(42);
+
+          for (let i = 0; i < numSeeds; i++) {
+            const x = Math.floor(rng() * width);
+            const y = Math.floor(rng() * height);
+            occupied[y * width + x] = 1;
+          }
+
+          // DLA: random walk particles, stick when adjacent to cluster
+          const maxParticles = Math.min(Math.floor(totalPixels * 0.15), 50000);
+          const maxSteps = Math.max(width, height) * 2;
+
+          for (let p = 0; p < maxParticles; p++) {
+            let px = Math.floor(rng() * width);
+            let py = Math.floor(rng() * height);
+
+            for (let step = 0; step < maxSteps; step++) {
+              // Check if adjacent to cluster
+              let adjacent = false;
+              for (let dy = -1; dy <= 1 && !adjacent; dy++) {
+                for (let dx = -1; dx <= 1 && !adjacent; dx++) {
+                  if (dx === 0 && dy === 0) continue;
+                  const nx = px + dx;
+                  const ny = py + dy;
+                  if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    if (occupied[ny * width + nx]) {
+                      adjacent = true;
+                    }
+                  }
+                }
+              }
+
+              if (adjacent) {
+                occupied[py * width + px] = 1;
+                break;
+              }
+
+              // Random walk
+              const dir = Math.floor(rng() * 4);
+              if (dir === 0 && px > 0) px--;
+              else if (dir === 1 && px < width - 1) px++;
+              else if (dir === 2 && py > 0) py--;
+              else if (dir === 3 && py < height - 1) py++;
+            }
+          }
+
+          // Build density map from clusters using a small blur
+          const density = new Float32Array(totalPixels);
+          const blurR = 3;
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              if (!occupied[y * width + x]) continue;
+              for (let dy = -blurR; dy <= blurR; dy++) {
+                for (let dx = -blurR; dx <= blurR; dx++) {
+                  const nx = x + dx;
+                  const ny = y + dy;
+                  if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist <= blurR) {
+                      density[ny * width + nx] += 1 - dist / blurR;
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // Normalize density to [0, 1]
+          let maxDensity = 0;
+          for (let i = 0; i < totalPixels; i++) {
+            if (density[i] > maxDensity) maxDensity = density[i];
+          }
+          if (maxDensity > 0) {
+            for (let i = 0; i < totalPixels; i++) {
+              density[i] /= maxDensity;
+            }
+          }
+
+          // Use density as threshold against luminance, quantize to palette
+          for (let i = 0; i < totalPixels; i++) {
+            const si = i * 4;
+            const lum = lumMap[i];
+            const threshold = density[i];
+            // Modulate: mix source color with palette based on density vs luminance
+            if (lum > threshold) {
+              const nc = findNearest([src[si], src[si + 1], src[si + 2]]);
+              data[si] = nc[0];
+              data[si + 1] = nc[1];
+              data[si + 2] = nc[2];
+            } else {
+              // Use darkest palette color for cluster areas
+              const sorted = palette.slice().sort((a, b) => luminance(a[0], a[1], a[2]) - luminance(b[0], b[1], b[2]));
+              const nc = sorted[0];
+              data[si] = nc[0];
+              data[si + 1] = nc[1];
+              data[si + 2] = nc[2];
+            }
+            data[si + 3] = src[si + 3];
+          }
+
+          return { data, width, height };
+        }
+      },
+
+      'reaction-diffusion': {
+        name: 'Reaction-Diffusion',
+        description: 'Gray-Scott reaction-diffusion. Creates organic Turing patterns.',
+        fn: function(imageData, palette, options = {}) {
+          const { width, height } = imageData;
+          const src = imageData.data;
+          const data = new Uint8ClampedArray(src.length);
+          const findNearest = options._paletteLookup || createPaletteLookup(palette);
+
+          if (!palette || palette.length === 0) {
+            data.set(src);
+            return { data, width, height };
+          }
+
+          const totalPixels = width * height;
+          const Du = 0.16, Dv = 0.08, f = 0.035, k = 0.065;
+          const iterations = 200;
+
+          // Initialize grids
+          let U = new Float32Array(totalPixels);
+          let V = new Float32Array(totalPixels);
+          let nextU = new Float32Array(totalPixels);
+          let nextV = new Float32Array(totalPixels);
+
+          // U = 1 everywhere, V = 0 everywhere
+          for (let i = 0; i < totalPixels; i++) {
+            U[i] = 1.0;
+            V[i] = 0.0;
+          }
+
+          // Seed small random patches of V
+          const rng = (function(seed) {
+            let s = seed | 0;
+            return function() {
+              s = (s * 1664525 + 1013904223) & 0x7fffffff;
+              return s / 0x7fffffff;
+            };
+          })(123);
+
+          const numSeeds = Math.max(5, Math.floor(Math.sqrt(totalPixels) / 10));
+          for (let s = 0; s < numSeeds; s++) {
+            const cx = Math.floor(rng() * width);
+            const cy = Math.floor(rng() * height);
+            const r = Math.max(2, Math.floor(Math.min(width, height) / 40));
+            for (let dy = -r; dy <= r; dy++) {
+              for (let dx = -r; dx <= r; dx++) {
+                const nx = cx + dx;
+                const ny = cy + dy;
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height && dx * dx + dy * dy <= r * r) {
+                  const idx = ny * width + nx;
+                  V[idx] = 1.0;
+                  U[idx] = 0.5;
+                }
+              }
+            }
+          }
+
+          // Run Gray-Scott iterations
+          const dt = 1.0;
+          for (let iter = 0; iter < iterations; iter++) {
+            for (let y = 0; y < height; y++) {
+              for (let x = 0; x < width; x++) {
+                const idx = y * width + x;
+                const u = U[idx];
+                const v = V[idx];
+
+                // Laplacian with clamped boundary
+                const left = x > 0 ? idx - 1 : idx;
+                const right = x < width - 1 ? idx + 1 : idx;
+                const up = y > 0 ? idx - width : idx;
+                const down = y < height - 1 ? idx + width : idx;
+
+                const lapU = U[left] + U[right] + U[up] + U[down] - 4 * u;
+                const lapV = V[left] + V[right] + V[up] + V[down] - 4 * v;
+
+                const uvv = u * v * v;
+                nextU[idx] = u + dt * (Du * lapU - uvv + f * (1 - u));
+                nextV[idx] = v + dt * (Dv * lapV + uvv - (f + k) * v);
+
+                // Clamp
+                if (nextU[idx] < 0) nextU[idx] = 0;
+                if (nextU[idx] > 1) nextU[idx] = 1;
+                if (nextV[idx] < 0) nextV[idx] = 0;
+                if (nextV[idx] > 1) nextV[idx] = 1;
+              }
+            }
+            // Swap buffers
+            const tmpU = U; U = nextU; nextU = tmpU;
+            const tmpV = V; V = nextV; nextV = tmpV;
+          }
+
+          // Use V pattern to modulate source luminance threshold, quantize to palette
+          for (let i = 0; i < totalPixels; i++) {
+            const si = i * 4;
+            const srcLum = luminance(src[si], src[si + 1], src[si + 2]) / 255;
+            const vVal = V[i];
+
+            // Modulate: combine source color with reaction-diffusion pattern
+            const modR = Math.round(src[si] * (1 - vVal * 0.7));
+            const modG = Math.round(src[si + 1] * (1 - vVal * 0.7));
+            const modB = Math.round(src[si + 2] * (1 - vVal * 0.7));
+
+            const nc = findNearest([
+              clamp(modR, 0, 255),
+              clamp(modG, 0, 255),
+              clamp(modB, 0, 255)
+            ]);
+            data[si] = nc[0];
+            data[si + 1] = nc[1];
+            data[si + 2] = nc[2];
+            data[si + 3] = src[si + 3];
+          }
+
+          return { data, width, height };
+        }
+      },
+
+      'stipple': {
+        name: 'Voronoi Stippling',
+        description: 'Weighted Voronoi stippling. Places dots proportional to image darkness.',
+        fn: function(imageData, palette, options = {}) {
+          const { width, height } = imageData;
+          const src = imageData.data;
+          const data = new Uint8ClampedArray(src.length);
+          const findNearest = options._paletteLookup || createPaletteLookup(palette);
+
+          if (!palette || palette.length === 0) {
+            data.set(src);
+            return { data, width, height };
+          }
+
+          const totalPixels = width * height;
+
+          // Build luminance map (inverted: dark = high weight)
+          const lumMap = new Float32Array(totalPixels);
+          let lumSum = 0;
+          for (let i = 0; i < totalPixels; i++) {
+            const si = i * 4;
+            const lum = luminance(src[si], src[si + 1], src[si + 2]) / 255;
+            lumMap[i] = 1 - lum; // Invert: darker = higher weight
+            lumSum += lumMap[i];
+          }
+
+          // Seeded RNG
+          const rng = (function(seed) {
+            let s = seed | 0;
+            return function() {
+              s = (s * 1664525 + 1013904223) & 0x7fffffff;
+              return s / 0x7fffffff;
+            };
+          })(77);
+
+          // Generate ~2000 seed points, weighted by inverse luminance
+          const numPoints = Math.min(2000, Math.floor(totalPixels / 4));
+          const points = [];
+          for (let i = 0; i < numPoints; i++) {
+            // Weighted random sampling using rejection method
+            let px, py;
+            let attempts = 0;
+            do {
+              px = rng() * width;
+              py = rng() * height;
+              const idx = Math.floor(py) * width + Math.floor(px);
+              if (idx >= 0 && idx < totalPixels && rng() < lumMap[idx]) {
+                break;
+              }
+              attempts++;
+            } while (attempts < 50);
+            points.push([px, py]);
+          }
+
+          // Lloyd relaxation iterations
+          const lloydIterations = 5;
+          // Use grid-based spatial lookup for Voronoi
+          const gridCellSize = Math.max(4, Math.floor(Math.sqrt(totalPixels / numPoints)));
+
+          for (let iter = 0; iter < lloydIterations; iter++) {
+            // For each point, accumulate weighted centroid
+            const sumX = new Float64Array(numPoints);
+            const sumY = new Float64Array(numPoints);
+            const sumW = new Float64Array(numPoints);
+
+            // Build spatial grid for fast nearest-point lookup
+            const gridW = Math.ceil(width / gridCellSize);
+            const gridH = Math.ceil(height / gridCellSize);
+            const grid = new Array(gridW * gridH);
+            for (let g = 0; g < grid.length; g++) grid[g] = [];
+
+            for (let p = 0; p < points.length; p++) {
+              const gx = Math.floor(points[p][0] / gridCellSize);
+              const gy = Math.floor(points[p][1] / gridCellSize);
+              if (gx >= 0 && gx < gridW && gy >= 0 && gy < gridH) {
+                grid[gy * gridW + gx].push(p);
+              }
+            }
+
+            // Sample pixels (subsample for performance)
+            const step = Math.max(1, Math.floor(Math.sqrt(totalPixels / 20000)));
+            for (let y = 0; y < height; y += step) {
+              for (let x = 0; x < width; x += step) {
+                const gx = Math.floor(x / gridCellSize);
+                const gy = Math.floor(y / gridCellSize);
+
+                // Search nearby grid cells for nearest point
+                let bestDist = Infinity;
+                let bestP = 0;
+                const searchR = 2;
+                for (let dy = -searchR; dy <= searchR; dy++) {
+                  for (let dx = -searchR; dx <= searchR; dx++) {
+                    const ngx = gx + dx;
+                    const ngy = gy + dy;
+                    if (ngx < 0 || ngx >= gridW || ngy < 0 || ngy >= gridH) continue;
+                    const cell = grid[ngy * gridW + ngx];
+                    for (let c = 0; c < cell.length; c++) {
+                      const p = cell[c];
+                      const ddx = x - points[p][0];
+                      const ddy = y - points[p][1];
+                      const dist = ddx * ddx + ddy * ddy;
+                      if (dist < bestDist) {
+                        bestDist = dist;
+                        bestP = p;
+                      }
+                    }
+                  }
+                }
+
+                const w = lumMap[y * width + x];
+                sumX[bestP] += x * w;
+                sumY[bestP] += y * w;
+                sumW[bestP] += w;
+              }
+            }
+
+            // Move points to weighted centroids
+            for (let p = 0; p < numPoints; p++) {
+              if (sumW[p] > 0) {
+                points[p][0] = sumX[p] / sumW[p];
+                points[p][1] = sumY[p] / sumW[p];
+              }
+              // Clamp to bounds
+              points[p][0] = Math.max(0, Math.min(width - 1, points[p][0]));
+              points[p][1] = Math.max(0, Math.min(height - 1, points[p][1]));
+            }
+          }
+
+          // Sort palette by luminance for mapping
+          const sortedPalette = palette.slice().sort((a, b) =>
+            luminance(a[0], a[1], a[2]) - luminance(b[0], b[1], b[2])
+          );
+          const bgColor = sortedPalette[sortedPalette.length - 1]; // Lightest as background
+
+          // Fill background
+          for (let i = 0; i < totalPixels; i++) {
+            const di = i * 4;
+            data[di] = bgColor[0];
+            data[di + 1] = bgColor[1];
+            data[di + 2] = bgColor[2];
+            data[di + 3] = src[di + 3];
+          }
+
+          // Render stipple dots
+          for (let p = 0; p < points.length; p++) {
+            const px = Math.round(points[p][0]);
+            const py = Math.round(points[p][1]);
+            if (px < 0 || px >= width || py < 0 || py >= height) continue;
+
+            const srcIdx = (py * width + px) * 4;
+            const darkness = lumMap[py * width + px];
+            const radius = Math.max(1, Math.round(darkness * 3 + 0.5));
+            const nc = findNearest([src[srcIdx], src[srcIdx + 1], src[srcIdx + 2]]);
+
+            // Draw filled circle
+            for (let dy = -radius; dy <= radius; dy++) {
+              for (let dx = -radius; dx <= radius; dx++) {
+                if (dx * dx + dy * dy <= radius * radius) {
+                  const nx = px + dx;
+                  const ny = py + dy;
+                  if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    const di = (ny * width + nx) * 4;
+                    data[di] = nc[0];
+                    data[di + 1] = nc[1];
+                    data[di + 2] = nc[2];
+                  }
+                }
+              }
+            }
+          }
+
+          return { data, width, height };
+        }
+      },
+
+      'flow-field': {
+        name: 'Flow Field',
+        description: 'Flow field lines. Follows gradient direction for organic line art.',
+        fn: function(imageData, palette, options = {}) {
+          const { width, height } = imageData;
+          const src = imageData.data;
+          const data = new Uint8ClampedArray(src.length);
+          const findNearest = options._paletteLookup || createPaletteLookup(palette);
+
+          if (!palette || palette.length === 0) {
+            data.set(src);
+            return { data, width, height };
+          }
+
+          const totalPixels = width * height;
+
+          // Build luminance map
+          const lumMap = new Float32Array(totalPixels);
+          for (let i = 0; i < totalPixels; i++) {
+            const si = i * 4;
+            lumMap[i] = luminance(src[si], src[si + 1], src[si + 2]);
+          }
+
+          // Compute Sobel gradient angles
+          const angles = new Float32Array(totalPixels);
+          const gradMag = new Float32Array(totalPixels);
+
+          for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+              const idx = y * width + x;
+              // Sobel kernels
+              const gx = -lumMap[(y - 1) * width + (x - 1)] - 2 * lumMap[y * width + (x - 1)] - lumMap[(y + 1) * width + (x - 1)]
+                        + lumMap[(y - 1) * width + (x + 1)] + 2 * lumMap[y * width + (x + 1)] + lumMap[(y + 1) * width + (x + 1)];
+              const gy = -lumMap[(y - 1) * width + (x - 1)] - 2 * lumMap[(y - 1) * width + x] - lumMap[(y - 1) * width + (x + 1)]
+                        + lumMap[(y + 1) * width + (x - 1)] + 2 * lumMap[(y + 1) * width + x] + lumMap[(y + 1) * width + (x + 1)];
+
+              angles[idx] = Math.atan2(gy, gx);
+              gradMag[idx] = Math.sqrt(gx * gx + gy * gy);
+            }
+          }
+
+          // Sort palette by luminance
+          const sortedPalette = palette.slice().sort((a, b) =>
+            luminance(a[0], a[1], a[2]) - luminance(b[0], b[1], b[2])
+          );
+          const bgColor = sortedPalette[sortedPalette.length - 1];
+
+          // Fill background
+          for (let i = 0; i < totalPixels; i++) {
+            const di = i * 4;
+            data[di] = bgColor[0];
+            data[di + 1] = bgColor[1];
+            data[di + 2] = bgColor[2];
+            data[di + 3] = src[di + 3];
+          }
+
+          // Place seed points on a grid
+          const spacing = options.spacing || Math.max(4, Math.floor(Math.min(width, height) / 60));
+          const maxSteps = 30;
+
+          for (let sy = spacing; sy < height - spacing; sy += spacing) {
+            for (let sx = spacing; sx < width - spacing; sx += spacing) {
+              // Trace streamline
+              let cx = sx;
+              let cy = sy;
+              const path = [[cx, cy]];
+
+              for (let step = 0; step < maxSteps; step++) {
+                const ix = Math.round(cx);
+                const iy = Math.round(cy);
+                if (ix < 1 || ix >= width - 1 || iy < 1 || iy >= height - 1) break;
+
+                const angle = angles[iy * width + ix];
+                cx += Math.cos(angle) * 1.5;
+                cy += Math.sin(angle) * 1.5;
+
+                // Stop if out of bounds
+                if (cx < 0 || cx >= width || cy < 0 || cy >= height) break;
+                path.push([cx, cy]);
+              }
+
+              // Draw line along path
+              if (path.length < 2) continue;
+
+              for (let i = 0; i < path.length - 1; i++) {
+                const x0 = Math.round(path[i][0]);
+                const y0 = Math.round(path[i][1]);
+                const x1 = Math.round(path[i + 1][0]);
+                const y1 = Math.round(path[i + 1][1]);
+
+                // Get local darkness for line thickness
+                const midX = Math.round((x0 + x1) / 2);
+                const midY = Math.round((y0 + y1) / 2);
+                if (midX < 0 || midX >= width || midY < 0 || midY >= height) continue;
+
+                const darkness = 1 - lumMap[midY * width + midX] / 255;
+                const thickness = Math.max(1, Math.round(darkness * 3));
+
+                // Get color from source at midpoint
+                const srcIdx = (midY * width + midX) * 4;
+                const nc = findNearest([src[srcIdx], src[srcIdx + 1], src[srcIdx + 2]]);
+
+                // Bresenham line with thickness
+                const dx = Math.abs(x1 - x0);
+                const dy = Math.abs(y1 - y0);
+                const stepX = x0 < x1 ? 1 : -1;
+                const stepY = y0 < y1 ? 1 : -1;
+                let err = dx - dy;
+                let lx = x0, ly = y0;
+
+                while (true) {
+                  // Draw with thickness
+                  const halfT = Math.floor(thickness / 2);
+                  for (let ty = -halfT; ty <= halfT; ty++) {
+                    for (let tx = -halfT; tx <= halfT; tx++) {
+                      const px = lx + tx;
+                      const py = ly + ty;
+                      if (px >= 0 && px < width && py >= 0 && py < height) {
+                        const di = (py * width + px) * 4;
+                        data[di] = nc[0];
+                        data[di + 1] = nc[1];
+                        data[di + 2] = nc[2];
+                      }
+                    }
+                  }
+
+                  if (lx === x1 && ly === y1) break;
+                  const e2 = 2 * err;
+                  if (e2 > -dy) { err -= dy; lx += stepX; }
+                  if (e2 < dx) { err += dx; ly += stepY; }
+                }
+              }
+            }
+          }
+
+          return { data, width, height };
+        }
+      },
+
+      'ascii': {
+        name: 'ASCII Art',
+        description: 'ASCII art rendering. Maps brightness to character density.',
+        fn: function(imageData, palette, options = {}) {
+          const { width, height } = imageData;
+          const src = imageData.data;
+          const data = new Uint8ClampedArray(src.length);
+          const findNearest = options._paletteLookup || createPaletteLookup(palette);
+
+          if (!palette || palette.length === 0) {
+            data.set(src);
+            return { data, width, height };
+          }
+
+          const cellSize = options.cellSize || 8;
+          const densityRamp = ' .:-=+*#%@';
+          const rampLen = densityRamp.length;
+
+          // Character bitmap patterns (simplified: density = fill percentage)
+          // Each character maps to a fill pattern in a cellSize x cellSize grid
+          function getCharPattern(charIdx, cw, ch) {
+            // Return a 2D density pattern for the character
+            const density = charIdx / (rampLen - 1);
+            const pattern = new Float32Array(cw * ch);
+
+            if (density <= 0) return pattern; // Space: empty
+
+            // Generate pattern based on density level
+            // Higher density = more filled pixels
+            // Use structured patterns for visual interest
+            if (density < 0.15) {
+              // Dot: single center pixel
+              const cx = Math.floor(cw / 2);
+              const cy = Math.floor(ch / 2);
+              pattern[cy * cw + cx] = 1;
+            } else if (density < 0.25) {
+              // Sparse dots
+              for (let y = 0; y < ch; y += 3) {
+                for (let x = 0; x < cw; x += 3) {
+                  if (y < ch && x < cw) pattern[y * cw + x] = 1;
+                }
+              }
+            } else if (density < 0.35) {
+              // Horizontal line
+              const cy = Math.floor(ch / 2);
+              for (let x = 1; x < cw - 1; x++) {
+                pattern[cy * cw + x] = 1;
+              }
+            } else if (density < 0.45) {
+              // Cross
+              const cx = Math.floor(cw / 2);
+              const cy = Math.floor(ch / 2);
+              for (let x = 0; x < cw; x++) pattern[cy * cw + x] = 1;
+              for (let y = 0; y < ch; y++) pattern[y * cw + cx] = 1;
+            } else if (density < 0.55) {
+              // Plus with corners
+              const cx = Math.floor(cw / 2);
+              const cy = Math.floor(ch / 2);
+              for (let x = 0; x < cw; x++) pattern[cy * cw + x] = 1;
+              for (let y = 0; y < ch; y++) pattern[y * cw + cx] = 1;
+              pattern[0] = 1;
+              pattern[cw - 1] = 1;
+              pattern[(ch - 1) * cw] = 1;
+              pattern[(ch - 1) * cw + cw - 1] = 1;
+            } else if (density < 0.65) {
+              // Grid
+              for (let y = 0; y < ch; y++) {
+                for (let x = 0; x < cw; x++) {
+                  if (x % 2 === 0 || y % 2 === 0) pattern[y * cw + x] = 1;
+                }
+              }
+            } else if (density < 0.75) {
+              // Dense checkerboard
+              for (let y = 0; y < ch; y++) {
+                for (let x = 0; x < cw; x++) {
+                  if ((x + y) % 2 === 0) pattern[y * cw + x] = 1;
+                }
+              }
+            } else if (density < 0.85) {
+              // Mostly filled with gaps
+              for (let y = 0; y < ch; y++) {
+                for (let x = 0; x < cw; x++) {
+                  if (!((x === 0 || x === cw - 1) && (y === 0 || y === ch - 1))) {
+                    pattern[y * cw + x] = 1;
+                  }
+                }
+              }
+            } else {
+              // Fully filled
+              for (let i = 0; i < cw * ch; i++) pattern[i] = 1;
+            }
+            return pattern;
+          }
+
+          // Sort palette by luminance
+          const sortedPalette = palette.slice().sort((a, b) =>
+            luminance(a[0], a[1], a[2]) - luminance(b[0], b[1], b[2])
+          );
+          const bgColor = sortedPalette[sortedPalette.length - 1];
+
+          // Fill background
+          for (let i = 0; i < width * height; i++) {
+            const di = i * 4;
+            data[di] = bgColor[0];
+            data[di + 1] = bgColor[1];
+            data[di + 2] = bgColor[2];
+            data[di + 3] = src[di + 3];
+          }
+
+          // Process each cell
+          const cellW = cellSize;
+          const cellH = cellSize;
+
+          for (let cy = 0; cy < height; cy += cellH) {
+            for (let cx = 0; cx < width; cx += cellW) {
+              // Compute average luminance and color for this cell
+              let avgR = 0, avgG = 0, avgB = 0;
+              let avgLum = 0;
+              let count = 0;
+
+              for (let y = cy; y < Math.min(cy + cellH, height); y++) {
+                for (let x = cx; x < Math.min(cx + cellW, width); x++) {
+                  const si = (y * width + x) * 4;
+                  avgR += src[si];
+                  avgG += src[si + 1];
+                  avgB += src[si + 2];
+                  avgLum += luminance(src[si], src[si + 1], src[si + 2]);
+                  count++;
+                }
+              }
+
+              if (count === 0) continue;
+              avgR = Math.round(avgR / count);
+              avgG = Math.round(avgG / count);
+              avgB = Math.round(avgB / count);
+              avgLum = avgLum / count / 255; // Normalize to 0-1
+
+              // Map luminance to character index (dark = dense character)
+              const charIdx = Math.min(rampLen - 1, Math.floor((1 - avgLum) * rampLen));
+              const nc = findNearest([avgR, avgG, avgB]);
+
+              // Get pattern for this character
+              const actualW = Math.min(cellW, width - cx);
+              const actualH = Math.min(cellH, height - cy);
+              const pattern = getCharPattern(charIdx, actualW, actualH);
+
+              // Render pattern into output
+              for (let y = 0; y < actualH; y++) {
+                for (let x = 0; x < actualW; x++) {
+                  if (pattern[y * actualW + x] > 0) {
+                    const di = ((cy + y) * width + (cx + x)) * 4;
+                    data[di] = nc[0];
+                    data[di + 1] = nc[1];
+                    data[di + 2] = nc[2];
+                  }
+                }
+              }
+            }
+          }
+
+          return { data, width, height };
+        }
+      },
+
+      'edge-dither': {
+        name: 'Edge-Aware Dither',
+        description: 'Edge-aware dithering. Preserves edges with hard quantization, dithers flat areas.',
+        fn: function(imageData, palette, options = {}) {
+          const { width, height } = imageData;
+          const src = imageData.data;
+          const data = new Uint8ClampedArray(src);
+          const findNearest = options._paletteLookup || createPaletteLookup(palette);
+          const thresh = options.threshold !== undefined ? options.threshold : 0.5;
+
+          if (!palette || palette.length === 0) {
+            return { data, width, height };
+          }
+
+          const totalPixels = width * height;
+
+          // Compute luminance map
+          const lumMap = new Float32Array(totalPixels);
+          for (let i = 0; i < totalPixels; i++) {
+            const si = i * 4;
+            lumMap[i] = luminance(src[si], src[si + 1], src[si + 2]);
+          }
+
+          // Compute Sobel edge magnitude
+          const edgeMag = new Float32Array(totalPixels);
+          let maxEdge = 0;
+          for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+              const idx = y * width + x;
+              const gx = -lumMap[(y - 1) * width + (x - 1)] - 2 * lumMap[y * width + (x - 1)] - lumMap[(y + 1) * width + (x - 1)]
+                        + lumMap[(y - 1) * width + (x + 1)] + 2 * lumMap[y * width + (x + 1)] + lumMap[(y + 1) * width + (x + 1)];
+              const gy = -lumMap[(y - 1) * width + (x - 1)] - 2 * lumMap[(y - 1) * width + x] - lumMap[(y - 1) * width + (x + 1)]
+                        + lumMap[(y + 1) * width + (x - 1)] + 2 * lumMap[(y + 1) * width + x] + lumMap[(y + 1) * width + (x + 1)];
+              edgeMag[idx] = Math.sqrt(gx * gx + gy * gy);
+              if (edgeMag[idx] > maxEdge) maxEdge = edgeMag[idx];
+            }
+          }
+
+          // Normalize edge magnitudes
+          if (maxEdge > 0) {
+            for (let i = 0; i < totalPixels; i++) {
+              edgeMag[i] /= maxEdge;
+            }
+          }
+
+          // Edge threshold scaled by option
+          const edgeThreshold = thresh;
+
+          // Process: hard quantize edges, Floyd-Steinberg for flat areas
+          // We work on a copy of the source data (already in `data`)
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              const idx = y * width + x;
+              const di = idx * 4;
+              const r = clamp(Math.round(data[di]), 0, 255);
+              const g = clamp(Math.round(data[di + 1]), 0, 255);
+              const b = clamp(Math.round(data[di + 2]), 0, 255);
+
+              const nc = findNearest([r, g, b]);
+              const errR = r - nc[0];
+              const errG = g - nc[1];
+              const errB = b - nc[2];
+
+              data[di] = nc[0];
+              data[di + 1] = nc[1];
+              data[di + 2] = nc[2];
+
+              // Only diffuse error in flat (non-edge) areas
+              if (edgeMag[idx] <= edgeThreshold) {
+                // Floyd-Steinberg error diffusion
+                const distribute = function(ox, oy, factor) {
+                  const nx = x + ox;
+                  const ny = y + oy;
+                  if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    const ni = (ny * width + nx) * 4;
+                    data[ni]     += errR * factor;
+                    data[ni + 1] += errG * factor;
+                    data[ni + 2] += errB * factor;
+                  }
+                };
+                distribute(1, 0, 7 / 16);
+                distribute(-1, 1, 3 / 16);
+                distribute(0, 1, 5 / 16);
+                distribute(1, 1, 1 / 16);
+              }
+            }
+          }
+
+          return { data, width, height };
+        }
+      },
+
+      'posterize-dither': {
+        name: 'Posterize Dither',
+        description: 'Posterize with dithered transitions. Reduces colors with smooth dither blending between bands.',
+        fn: function(imageData, palette, options = {}) {
+          const { width, height } = imageData;
+          const src = imageData.data;
+          const data = new Uint8ClampedArray(src.length);
+          const findNearest = options._paletteLookup || createPaletteLookup(palette);
+
+          if (!palette || palette.length === 0) {
+            data.set(src);
+            return { data, width, height };
+          }
+
+          // Sort palette by luminance
+          const sortedPalette = palette.slice().sort((a, b) =>
+            luminance(a[0], a[1], a[2]) - luminance(b[0], b[1], b[2])
+          );
+          const numBands = sortedPalette.length;
+
+          // Bayer 4x4 matrix for ordered dithering
+          const bayer4 = [
+             0,  8,  2, 10,
+            12,  4, 14,  6,
+             3, 11,  1,  9,
+            15,  7, 13,  5
+          ];
+          // Normalize to [0, 1)
+          const bayerNorm = bayer4.map(v => v / 16);
+
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              const si = (y * width + x) * 4;
+              const r = src[si];
+              const g = src[si + 1];
+              const b = src[si + 2];
+              const lum = luminance(r, g, b) / 255; // 0-1
+
+              // Determine which two bands this falls between
+              const scaledLum = lum * (numBands - 1);
+              const bandLow = Math.floor(scaledLum);
+              const bandHigh = Math.min(bandLow + 1, numBands - 1);
+              const bandFrac = scaledLum - bandLow; // Fractional position between bands
+
+              // Get Bayer threshold for this pixel
+              const bayerVal = bayerNorm[(y % 4) * 4 + (x % 4)];
+
+              // Dither between the two nearest band colors
+              const bandColor = bandFrac > bayerVal ? sortedPalette[bandHigh] : sortedPalette[bandLow];
+
+              // Blend with source color direction for better color preservation
+              const blendR = Math.round(r * 0.3 + bandColor[0] * 0.7);
+              const blendG = Math.round(g * 0.3 + bandColor[1] * 0.7);
+              const blendB = Math.round(b * 0.3 + bandColor[2] * 0.7);
+
+              const nc = findNearest([blendR, blendG, blendB]);
+              data[si] = nc[0];
+              data[si + 1] = nc[1];
+              data[si + 2] = nc[2];
+              data[si + 3] = src[si + 3];
+            }
+          }
+
+          return { data, width, height };
+        }
+      }
     }
   };
 
@@ -3385,7 +4350,8 @@ const DitherEngine = (() => {
       'noise': 'Noise / Stochastic',
       'pattern': 'Pattern',
       'artistic': 'Artistic',
-      'threshold': 'Threshold'
+      'threshold': 'Threshold',
+      'creative': 'Creative / Experimental'
     };
     return names[categoryId] || categoryId;
   }
