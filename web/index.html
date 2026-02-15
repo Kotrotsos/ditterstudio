@@ -291,12 +291,16 @@
     border-color: rgba(0,0,0,0.12);
   }
 
-  /* THEME TOGGLE */
-  .theme-toggle {
+  /* TOP-RIGHT CONTROLS */
+  .top-controls {
     position: fixed;
     top: 16px;
     right: 16px;
     z-index: 200;
+    display: flex;
+    gap: 6px;
+  }
+  .top-btn {
     background: var(--bg3);
     border: 1px solid var(--border);
     color: var(--text2);
@@ -307,7 +311,7 @@
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
   }
-  .theme-toggle:hover { background: var(--bg4); color: var(--text); }
+  .top-btn:hover { background: var(--bg4); color: var(--text); }
 
   /* RESPONSIVE */
   @media (max-width: 900px) {
@@ -315,13 +319,16 @@
     main { margin-left: 0; padding: 24px 16px 80px; }
     .card-grid { grid-template-columns: 1fr; }
     .preset-grid { grid-template-columns: 1fr 1fr; }
-    .theme-toggle { top: 8px; right: 8px; }
+    .top-controls { top: 8px; right: 8px; }
   }
 </style>
 </head>
 <body>
 
-<button class="theme-toggle" id="theme-toggle">Light</button>
+<div class="top-controls">
+  <button class="top-btn" id="zoom-btn">150%</button>
+  <button class="top-btn" id="theme-toggle">Light</button>
+</div>
 
 <nav>
   <h2>Ditter</h2>
@@ -978,9 +985,10 @@
 </main>
 
 <script>
+  // Theme toggle
   const toggle = document.getElementById('theme-toggle');
-  const stored = localStorage.getItem('ditter-docs-theme');
-  if (stored === 'light') {
+  const storedTheme = localStorage.getItem('ditter-docs-theme');
+  if (storedTheme === 'light') {
     document.documentElement.setAttribute('data-theme', 'light');
     toggle.textContent = 'Dark';
   }
@@ -995,6 +1003,27 @@
       toggle.textContent = 'Dark';
       localStorage.setItem('ditter-docs-theme', 'light');
     }
+  });
+
+  // Zoom control
+  const zoomBtn = document.getElementById('zoom-btn');
+  const zoomLevels = [100, 125, 150, 175, 200];
+  let zoomIndex = zoomLevels.indexOf(
+    parseInt(localStorage.getItem('ditter-docs-zoom')) || 150
+  );
+  if (zoomIndex === -1) zoomIndex = 2;
+
+  function applyZoom() {
+    const level = zoomLevels[zoomIndex];
+    document.querySelector('main').style.zoom = level / 100;
+    zoomBtn.textContent = level + '%';
+    localStorage.setItem('ditter-docs-zoom', level);
+  }
+  applyZoom();
+
+  zoomBtn.addEventListener('click', () => {
+    zoomIndex = (zoomIndex + 1) % zoomLevels.length;
+    applyZoom();
   });
 </script>
 </body>
