@@ -271,16 +271,57 @@
   }
   .shortcut-row span:first-child { color: var(--text2); }
 
+  /* LIGHT THEME */
+  [data-theme="light"] {
+    --bg: #f5f5f7;
+    --bg2: #eaeaee;
+    --bg3: #e0e0e6;
+    --bg4: #d4d4dc;
+    --text: #1a1a1e;
+    --text2: #4a4a56;
+    --text3: #7a7a88;
+    --accent: #7c3aed;
+    --accent2: #6d28d9;
+    --border: #c8c8d0;
+    --green: #059669;
+    --red: #dc2626;
+    --yellow: #d97706;
+  }
+  [data-theme="light"] .swatch {
+    border-color: rgba(0,0,0,0.12);
+  }
+
+  /* THEME TOGGLE */
+  .theme-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 200;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    font-family: var(--font);
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .theme-toggle:hover { background: var(--bg4); color: var(--text); }
+
   /* RESPONSIVE */
   @media (max-width: 900px) {
     nav { display: none; }
     main { margin-left: 0; padding: 24px 16px 80px; }
     .card-grid { grid-template-columns: 1fr; }
     .preset-grid { grid-template-columns: 1fr 1fr; }
+    .theme-toggle { top: 8px; right: 8px; }
   }
 </style>
 </head>
 <body>
+
+<button class="theme-toggle" id="theme-toggle">Light</button>
 
 <nav>
   <h2>Ditter</h2>
@@ -303,20 +344,22 @@
   <a href="#shortcuts">Keyboard Shortcuts</a>
   <a href="#performance">Performance</a>
   <a href="#export">Export</a>
+  <a href="#video">Video</a>
+  <a href="#packaging">Packaging</a>
 </nav>
 
 <main>
 
 <!-- OVERVIEW -->
 <h1>Ditter</h1>
-<p class="subtitle">A real-time dithering tool with 60+ algorithms, GPU acceleration, and a pattern playground.</p>
+<p class="subtitle">A real-time dithering tool with 60+ algorithms, GPU acceleration, video support, and a pattern playground.</p>
 
 <div class="screenshot">
   <img src="screenshots/01-landing.png" alt="Ditter landing page">
   <div class="screenshot-caption">The Ditter interface: canvas area with toolbar, resizable control panel on the right.</div>
 </div>
 
-<p>Ditter is a browser-based (and desktop via Tauri) image dithering tool. It transforms images using a wide variety of dithering, halftone, pattern, and creative algorithms, all processed in real-time. Many algorithms are GPU-accelerated via WebGL2 for instant feedback even on large images.</p>
+<p>Ditter is a browser-based (and desktop via Tauri) image and video dithering tool. It transforms images and video frames using a wide variety of dithering, halftone, pattern, and creative algorithms, all processed in real-time. Many algorithms are GPU-accelerated via WebGL2 for instant feedback even on large images. Videos can be processed frame-by-frame and rendered to WebM.</p>
 
 <section id="overview">
 <h2>How It Works</h2>
@@ -330,6 +373,9 @@
 <h2>Getting Started</h2>
 <h3>Loading an Image</h3>
 <p>Drag and drop an image onto the canvas, click the drop zone to browse, or use <kbd>Ctrl</kbd>+<kbd>O</kbd> to open the file picker. Supported formats: PNG, JPG, WebP, GIF.</p>
+
+<h3>Loading a Video</h3>
+<p>Drag and drop a video file (MP4, WebM, or QuickTime) onto the canvas, or use the file picker. Ditter will extract frames and display a filmstrip below the canvas. Each frame is dithered using the same processing pipeline as images. See the <a href="#video">Video</a> section for full details.</p>
 
 <h3>Generating a Gradient</h3>
 <p>Click "Or generate a gradient" in the drop zone (or "Generate Gradient" in the Source section) to create a synthetic gradient. Choose between solid color, linear gradient, or radial gradient. Adjust colors, dimensions, and angle.</p>
@@ -772,6 +818,15 @@
 <div class="shortcut-row"><span>Reset zoom (1:1)</span><span><kbd>0</kbd></span></div>
 <div class="shortcut-row"><span>Zoom to fit</span><span><kbd>F</kbd></span></div>
 <div class="shortcut-row"><span>Close modal</span><span><kbd>Esc</kbd></span></div>
+
+<h3>Video Mode</h3>
+<p>These shortcuts are active when a video is loaded:</p>
+<div class="shortcut-row"><span>Previous frame</span><span><kbd>&larr;</kbd></span></div>
+<div class="shortcut-row"><span>Next frame</span><span><kbd>&rarr;</kbd></span></div>
+<div class="shortcut-row"><span>Play / Pause</span><span><kbd>Space</kbd></span></div>
+<div class="shortcut-row"><span>First frame</span><span><kbd>Home</kbd></span></div>
+<div class="shortcut-row"><span>Last frame</span><span><kbd>End</kbd></span></div>
+
 <p style="margin-top: 12px;">Pan the canvas by clicking and dragging. Zoom with the scroll wheel (zooms toward cursor).</p>
 </section>
 
@@ -823,6 +878,10 @@
   <tr><td><strong>Scale</strong></td><td>1x, 2x, 3x, 4x output resolution multiplier</td></tr>
   <tr><td><strong>Filename</strong></td><td>Custom filename (defaults to "ditter-export")</td></tr>
 </table>
+
+<p>On the Tauri desktop app, export opens a native Save As dialog so you can choose the destination folder. In the browser, files are downloaded directly.</p>
+
+<p>For video export, see the <a href="#video">Video</a> section below.</p>
 </section>
 
 <!-- THEMES -->
@@ -836,14 +895,107 @@
 </div>
 </section>
 
-<section>
-<h2>Desktop App</h2>
-<p>Ditter is also available as a native desktop application built with Tauri. The desktop version provides full Web Worker and WebGL support without needing a local server. Build with:</p>
-<p><code>npm run build</code> for production, or <code>npm run dev</code> for development with hot-reload.</p>
+<!-- VIDEO -->
+<section id="video">
+<h2>Video</h2>
+<p>Ditter can load video files and apply dithering frame-by-frame using the same processing pipeline as images. The result can be rendered to a downloadable WebM file.</p>
+
+<h3>Loading a Video</h3>
+<p>Drag and drop an MP4, WebM, or QuickTime file onto the canvas (or use the file picker). Ditter extracts the video metadata, calculates the total frame count, and builds a filmstrip of thumbnails below the canvas. Frame 0 is displayed and dithered automatically.</p>
+
+<h3>Filmstrip</h3>
+<p>The filmstrip appears below the canvas when a video is loaded. It includes:</p>
+<table>
+  <tr><th>Control</th><th>Description</th></tr>
+  <tr><td><strong>Prev / Next</strong></td><td>Step one frame backward or forward</td></tr>
+  <tr><td><strong>Play / Pause</strong></td><td>Preview playback at ~8fps (dithered in real-time)</td></tr>
+  <tr><td><strong>Frame counter</strong></td><td>Shows current frame number and total</td></tr>
+  <tr><td><strong>Scrubber</strong></td><td>Drag to seek to any frame</td></tr>
+  <tr><td><strong>Time display</strong></td><td>Current time position in the video</td></tr>
+  <tr><td><strong>Thumbnail track</strong></td><td>Click any thumbnail to jump to that frame. For long videos (300+ frames), thumbnails are sampled at 1 per second.</td></tr>
+</table>
+
+<h3>Processing</h3>
+<p>Every dithering control (algorithm, palette, scale, contrast, etc.) works exactly as with images. When you change a setting, the current frame is re-processed and the processed frame cache is cleared so that subsequent frames use the new settings.</p>
+<p>Ditter maintains an LRU cache of up to 50 processed frames. Previously visited frames with unchanged settings display instantly from the cache.</p>
+
+<h3>Rendering</h3>
+<p>Click the <strong>Render</strong> button in the header (visible only in video mode) to open the render dialog. Options:</p>
+<table>
+  <tr><th>Setting</th><th>Description</th></tr>
+  <tr><td><strong>FPS</strong></td><td>Output frame rate: 12, 15, 24 (default), or 30</td></tr>
+  <tr><td><strong>Quality</strong></td><td>Bitrate in Mbps (1, 20, default 8)</td></tr>
+  <tr><td><strong>Filename</strong></td><td>Output filename (defaults to "ditter-video")</td></tr>
+</table>
+<p>Rendering processes every frame sequentially through a dedicated Web Worker, draws each result to a canvas, and captures the stream using MediaRecorder. The output format is WebM (VP9 preferred, VP8 fallback). A progress bar shows completion percentage, and rendering can be cancelled at any time.</p>
+<p>On the Tauri desktop app, a native Save As dialog lets you choose where to save the WebM file. In the browser, the file downloads automatically.</p>
+
+<h3>Memory</h3>
+<p>Raw video frames are never stored in memory. They are extracted on-demand from the video element via seeking. The processed frame cache holds up to 50 frames (roughly 400MB at 1080p in the worst case). Thumbnails are lightweight (~40KB each). During rendering, frames flow sequentially through the worker and are not cached.</p>
 </section>
 
-<p style="margin-top: 60px; color: var(--text3); font-size: 11px; text-align: center; border-top: 1px solid var(--border); padding-top: 24px;">Ditter &mdash; A real-time dithering tool.</p>
+<!-- PACKAGING -->
+<section id="packaging">
+<h2>Packaging and Deployment</h2>
+<p>Ditter is built with <a href="https://v2.tauri.app">Tauri v2</a>, which compiles your web frontend into a native desktop app with a small Rust backend. Here is what you need to know to package and distribute the app.</p>
+
+<h3>Prerequisites</h3>
+<table>
+  <tr><th>Requirement</th><th>Details</th></tr>
+  <tr><td><strong>Rust</strong></td><td>Install via <code>rustup</code>. The Tauri CLI uses Cargo internally.</td></tr>
+  <tr><td><strong>Node.js</strong></td><td>For any frontend build tooling (Ditter uses a simple HTTP server for dev).</td></tr>
+  <tr><td><strong>Tauri CLI</strong></td><td><code>cargo install tauri-cli --version "^2"</code></td></tr>
+  <tr><td><strong>Platform tools</strong></td><td>macOS: Xcode Command Line Tools. Windows: Visual Studio Build Tools + WebView2. Linux: see <a href="https://v2.tauri.app/start/prerequisites/">Tauri prerequisites</a>.</td></tr>
+</table>
+
+<h3>Development</h3>
+<p>Run <code>cargo tauri dev</code> from the project root. This starts the dev HTTP server and compiles the Rust backend in debug mode with hot-reload on file changes.</p>
+
+<h3>Building for Release</h3>
+<p>Run <code>cargo tauri build</code> to create a production build. This produces platform-specific installers:</p>
+<table>
+  <tr><th>Platform</th><th>Output</th><th>Location</th></tr>
+  <tr><td>macOS</td><td><code>.dmg</code> and <code>.app</code> bundle</td><td><code>src-tauri/target/release/bundle/dmg/</code></td></tr>
+  <tr><td>Windows</td><td><code>.msi</code> and <code>.exe</code> (NSIS)</td><td><code>src-tauri/target/release/bundle/nsis/</code></td></tr>
+  <tr><td>Linux</td><td><code>.deb</code>, <code>.AppImage</code>, <code>.rpm</code></td><td><code>src-tauri/target/release/bundle/</code></td></tr>
+</table>
+
+<h3>Code Signing</h3>
+<p>To distribute outside of development, you should sign the app:</p>
+<p><strong>macOS:</strong> Requires an Apple Developer account ($99/year). Set the <code>APPLE_SIGNING_IDENTITY</code> environment variable or configure signing in <code>tauri.conf.json</code> under <code>bundle > macOS</code>. For notarization, also set <code>APPLE_ID</code>, <code>APPLE_PASSWORD</code> (app-specific), and <code>APPLE_TEAM_ID</code>.</p>
+<p><strong>Windows:</strong> Use a code signing certificate (EV or OV). Set <code>TAURI_SIGNING_PRIVATE_KEY</code> and related env vars. Tauri supports SignTool and Azure Trusted Signing.</p>
+<p><strong>Linux:</strong> No signing required for AppImage/deb distribution, though GPG signing is recommended for package repositories.</p>
+
+<h3>Cross-Platform Builds</h3>
+<p>Tauri builds natively, so you need each target OS to produce its installer. For CI/CD, use GitHub Actions with a matrix strategy across macOS, Windows, and Ubuntu runners. The <a href="https://github.com/tauri-apps/tauri-action">tauri-action</a> GitHub Action automates this and can create GitHub Releases with all installers attached.</p>
+
+<h3>Updater</h3>
+<p>Tauri v2 includes a built-in updater plugin (<code>tauri-plugin-updater</code>) that checks a remote JSON endpoint for new versions and downloads updates automatically. Configure the update URL in <code>tauri.conf.json</code> and host the update manifest alongside your release assets.</p>
+</section>
+
+<p style="margin-top: 60px; color: var(--text3); font-size: 11px; text-align: center; border-top: 1px solid var(--border); padding-top: 24px;">Ditter, a real-time dithering tool.</p>
 
 </main>
+
+<script>
+  const toggle = document.getElementById('theme-toggle');
+  const stored = localStorage.getItem('ditter-docs-theme');
+  if (stored === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    toggle.textContent = 'Dark';
+  }
+  toggle.addEventListener('click', () => {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    if (isLight) {
+      document.documentElement.removeAttribute('data-theme');
+      toggle.textContent = 'Light';
+      localStorage.setItem('ditter-docs-theme', 'dark');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      toggle.textContent = 'Dark';
+      localStorage.setItem('ditter-docs-theme', 'light');
+    }
+  });
+</script>
 </body>
 </html>
