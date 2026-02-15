@@ -546,8 +546,66 @@ const WebGLDither = (() => {
         vec3 adjusted = clamp(color + threshold, 0.0, 1.0);
         fragColor = vec4(nearestPaletteColor(adjusted), 1.0);
       }
+    `,
+
+    // --- REACTION-DIFFUSION: Gray-Scott simulation step ---
+    'rd-step': `#version 300 es
+      precision highp float;
+      in vec2 v_texCoord;
+      out vec4 fragColor;
+      uniform sampler2D u_source; // RG = U,V from previous step
+      uniform vec2 u_resolution;
+      uniform float u_Du;
+      uniform float u_Dv;
+      uniform float u_f;
+      uniform float u_k;
+
+      void main() {
+        vec2 texel = 1.0 / u_resolution;
+        vec4 c = texture(u_source, v_texCoord);
+        float u = c.r;
+        float v = c.g;
+
+        // 5-point Laplacian
+        float uL = texture(u_source, v_texCoord + vec2(-texel.x, 0.0)).r;
+        float uR = texture(u_source, v_texCoord + vec2( texel.x, 0.0)).r;
+        float uU = texture(u_source, v_texCoord + vec2(0.0, -texel.y)).r;
+        float uD = texture(u_source, v_texCoord + vec2(0.0,  texel.y)).r;
+        float lapU = uL + uR + uU + uD - 4.0 * u;
+
+        float vL = texture(u_source, v_texCoord + vec2(-texel.x, 0.0)).g;
+        float vR = texture(u_source, v_texCoord + vec2( texel.x, 0.0)).g;
+        float vU = texture(u_source, v_texCoord + vec2(0.0, -texel.y)).g;
+        float vD = texture(u_source, v_texCoord + vec2(0.0,  texel.y)).g;
+        float lapV = vL + vR + vU + vD - 4.0 * v;
+
+        float uvv = u * v * v;
+        float newU = clamp(u + u_Du * lapU - uvv + u_f * (1.0 - u), 0.0, 1.0);
+        float newV = clamp(v + u_Dv * lapV + uvv - (u_f + u_k) * v, 0.0, 1.0);
+
+        fragColor = vec4(newU, newV, 0.0, 1.0);
+      }
+    `,
+
+    // --- REACTION-DIFFUSION: Final compositing pass ---
+    'rd-compose': FRAG_HEADER + `
+      uniform sampler2D u_rdResult; // RG = final U,V
+      void main() {
+        vec3 srcColor = getSourceColor();
+        float vVal = texture(u_rdResult, v_texCoord).g;
+        vec3 modulated = srcColor * (1.0 - vVal * 0.7);
+        fragColor = vec4(nearestPaletteColor(clamp(modulated, 0.0, 1.0)), 1.0);
+      }
     `
   };
+
+  // Extra textures for reaction-diffusion ping-pong
+  let rdTexA = null;
+  let rdTexB = null;
+  let rdFramebufferA = null;
+  let rdFramebufferB = null;
+  let rdWidth = 0;
+  let rdHeight = 0;
 
   // Map from DitherEngine algorithm IDs to WebGL shader IDs
   const ALGO_MAP = {
@@ -604,6 +662,10 @@ const WebGLDither = (() => {
         console.warn('WebGL2 not available, GPU dithering disabled.');
         return false;
       }
+
+      // Enable float texture rendering (needed for reaction-diffusion ping-pong)
+      gl.getExtension('EXT_color_buffer_float');
+      gl.getExtension('OES_texture_float_linear');
 
       // Set up fullscreen quad
       const vertices = new Float32Array([0,0, 1,0, 0,1, 1,1]);
@@ -784,14 +846,6 @@ const WebGLDither = (() => {
   }
 
   /**
-   * Check if a given algorithm can be GPU-accelerated.
-   */
-  function canAccelerate(category, algorithm) {
-    if (!isAvailable) return false;
-    return !!(ALGO_MAP[category] && ALGO_MAP[category][algorithm]);
-  }
-
-  /**
    * Process image data using WebGL.
    * This replaces the dither step only (step 4 in the pipeline).
    *
@@ -909,10 +963,211 @@ const WebGLDither = (() => {
   }
 
   /**
+   * Initialize ping-pong textures/framebuffers for reaction-diffusion.
+   */
+  function initRDBuffers(w, h) {
+    if (rdWidth === w && rdHeight === h && rdTexA && rdTexB) return;
+    rdWidth = w;
+    rdHeight = h;
+
+    // Clean up old resources
+    if (rdTexA) gl.deleteTexture(rdTexA);
+    if (rdTexB) gl.deleteTexture(rdTexB);
+    if (rdFramebufferA) gl.deleteFramebuffer(rdFramebufferA);
+    if (rdFramebufferB) gl.deleteFramebuffer(rdFramebufferB);
+
+    // Create textures with FLOAT for precision
+    function createFloatTex() {
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.FLOAT, null);
+      return tex;
+    }
+
+    rdTexA = createFloatTex();
+    rdTexB = createFloatTex();
+
+    rdFramebufferA = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, rdFramebufferA);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, rdTexA, 0);
+
+    rdFramebufferB = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, rdFramebufferB);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, rdTexB, 0);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  /**
+   * GPU-accelerated reaction-diffusion.
+   * Runs Gray-Scott simulation entirely on the GPU with ping-pong framebuffers.
+   */
+  function processReactionDiffusion(imageData, palette, options) {
+    if (!isAvailable) return null;
+
+    const { width, height } = imageData;
+
+    // Simulation at reduced resolution for speed
+    const maxDim = 256;
+    const scale = Math.max(1, Math.ceil(Math.max(width, height) / maxDim));
+    const simW = Math.ceil(width / scale);
+    const simH = Math.ceil(height / scale);
+
+    initRDBuffers(simW, simH);
+
+    // Seed initial U,V state (U=1, V=0 everywhere, with random V patches)
+    const initData = new Float32Array(simW * simH * 4);
+    for (let i = 0; i < simW * simH; i++) {
+      initData[i * 4] = 1.0;     // U
+      initData[i * 4 + 1] = 0.0; // V
+      initData[i * 4 + 2] = 0.0;
+      initData[i * 4 + 3] = 1.0;
+    }
+
+    // Seed patches
+    let seed = 123;
+    function rng() {
+      seed = (seed * 1664525 + 1013904223) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    }
+    const numSeeds = Math.max(5, Math.floor(Math.sqrt(simW * simH) / 10));
+    for (let s = 0; s < numSeeds; s++) {
+      const cx = Math.floor(rng() * simW);
+      const cy = Math.floor(rng() * simH);
+      const r = Math.max(2, Math.floor(Math.min(simW, simH) / 40));
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx >= 0 && nx < simW && ny >= 0 && ny < simH && dx * dx + dy * dy <= r * r) {
+            const idx = (ny * simW + nx) * 4;
+            initData[idx] = 0.5;
+            initData[idx + 1] = 1.0;
+          }
+        }
+      }
+    }
+
+    // Upload initial state to texA
+    gl.bindTexture(gl.TEXTURE_2D, rdTexA);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, simW, simH, 0, gl.RGBA, gl.FLOAT, initData);
+
+    // Get the rd-step program
+    const stepProgram = getProgram('rd-step');
+    if (!stepProgram) return null;
+
+    gl.viewport(0, 0, simW, simH);
+
+    const iterations = Math.min(150, Math.max(80, Math.floor(40000 / Math.sqrt(simW * simH))));
+
+    // Ping-pong iterations
+    let readTex = rdTexA;
+    let writeFB = rdFramebufferB;
+    let writeTex = rdTexB;
+
+    for (let iter = 0; iter < iterations; iter++) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, writeFB);
+      gl.useProgram(stepProgram);
+      gl.bindVertexArray(quadVAO);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, readTex);
+      gl.uniform1i(gl.getUniformLocation(stepProgram, 'u_source'), 0);
+      gl.uniform2f(gl.getUniformLocation(stepProgram, 'u_resolution'), simW, simH);
+      gl.uniform1f(gl.getUniformLocation(stepProgram, 'u_Du'), 0.16);
+      gl.uniform1f(gl.getUniformLocation(stepProgram, 'u_Dv'), 0.08);
+      gl.uniform1f(gl.getUniformLocation(stepProgram, 'u_f'), 0.035);
+      gl.uniform1f(gl.getUniformLocation(stepProgram, 'u_k'), 0.065);
+
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+      // Swap
+      const tmp = readTex;
+      readTex = writeTex;
+      writeTex = tmp;
+      writeFB = (writeFB === rdFramebufferB) ? rdFramebufferA : rdFramebufferB;
+    }
+
+    // Now readTex has the final RD state
+    // Composite: combine RD result with source image using palette
+    // Reset viewport to full image size
+    gl.viewport(0, 0, width, height);
+    canvas.width = width;
+    canvas.height = height;
+    currentWidth = width;
+    currentHeight = height;
+
+    // Resize output texture
+    gl.bindTexture(gl.TEXTURE_2D, outputTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+    uploadSource(imageData);
+    uploadPalette(palette);
+
+    const composeProgram = getProgram('rd-compose');
+    if (!composeProgram) return null;
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, outputTexture, 0);
+
+    gl.useProgram(composeProgram);
+    gl.bindVertexArray(quadVAO);
+
+    // Source image on unit 0
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTexture);
+    gl.uniform1i(gl.getUniformLocation(composeProgram, 'u_source'), 0);
+
+    // Palette on unit 1
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, paletteTexture);
+    gl.uniform1i(gl.getUniformLocation(composeProgram, 'u_palette'), 1);
+
+    // RD result on unit 2 (the texture needs LINEAR filter for upscaling)
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, readTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.uniform1i(gl.getUniformLocation(composeProgram, 'u_rdResult'), 2);
+
+    gl.uniform1i(gl.getUniformLocation(composeProgram, 'u_paletteSize'), palette.length);
+    gl.uniform2f(gl.getUniformLocation(composeProgram, 'u_resolution'), width, height);
+    gl.uniform1f(gl.getUniformLocation(composeProgram, 'u_spread'), 1.0);
+    gl.uniform1f(gl.getUniformLocation(composeProgram, 'u_lineScale'), 1.0);
+    gl.uniform1f(gl.getUniformLocation(composeProgram, 'u_threshold'), 0.5);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    // Restore NEAREST filter on RD texture
+    gl.bindTexture(gl.TEXTURE_2D, readTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    // Read result
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    const pixels = readPixels();
+
+    return { data: pixels, width, height };
+  }
+
+  /**
    * Check availability.
    */
   function available() {
     return isAvailable;
+  }
+
+  /**
+   * Check if algorithm can be accelerated (including special-case algorithms).
+   */
+  function canAccelerate(category, algorithm) {
+    if (!isAvailable) return false;
+    // Special case: reaction-diffusion uses multi-pass GPU pipeline
+    if (category === 'creative' && algorithm === 'reaction-diffusion') return true;
+    return !!(ALGO_MAP[category] && ALGO_MAP[category][algorithm]);
   }
 
   return {
@@ -920,6 +1175,7 @@ const WebGLDither = (() => {
     available,
     canAccelerate,
     processDither,
-    processAdjustments
+    processAdjustments,
+    processReactionDiffusion
   };
 })();

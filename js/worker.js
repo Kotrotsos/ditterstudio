@@ -39,7 +39,12 @@ self.onmessage = function(e) {
 
       // Try GPU-accelerated path for supported algorithms
       if (gpuAvailable && WebGLDither.canAccelerate(params.category, params.algorithm)) {
-        result = processWithGPU(source, params);
+        // Special multi-pass GPU pipeline for reaction-diffusion
+        if (params.category === 'creative' && params.algorithm === 'reaction-diffusion') {
+          result = processReactionDiffusionGPU(source, params);
+        } else {
+          result = processWithGPU(source, params);
+        }
       }
 
       // Fall back to CPU
@@ -65,6 +70,70 @@ self.onmessage = function(e) {
     }
   }
 };
+
+/**
+ * GPU-accelerated reaction-diffusion pipeline.
+ * Pre-processes on CPU, then runs RD simulation + compositing on GPU.
+ */
+function processReactionDiffusionGPU(sourceImageData, params) {
+  const originalWidth = sourceImageData.width;
+  const originalHeight = sourceImageData.height;
+
+  // 1. Pre-process (adjustments, blur, depth)
+  let processed = DitherEngine.applyAdjustments(sourceImageData, {
+    contrast: params.contrast ?? 50,
+    midtones: params.midtones ?? 50,
+    highlights: params.highlights ?? 50,
+    invert: params.invert ?? false
+  });
+
+  if (params.blur > 0) {
+    processed = DitherEngine.applyBlur(processed, params.blur);
+  }
+  const smoothing = (params.smoothing ?? 0) / 100;
+  if (smoothing > 0) {
+    processed = DitherEngine.applyBlur(processed, smoothing * 8);
+  }
+  const depth = params.depth ?? 0;
+  if (depth > 0) {
+    const blurred = DitherEngine.applyBlur(processed, 2 + depth * 0.5);
+    const amount = depth / 5;
+    const pData = processed.data;
+    const bData = blurred.data;
+    for (let i = 0; i < pData.length; i += 4) {
+      pData[i] = DitherEngine.clamp(Math.round(pData[i] + (pData[i] - bData[i]) * amount), 0, 255);
+      pData[i + 1] = DitherEngine.clamp(Math.round(pData[i + 1] + (pData[i + 1] - bData[i + 1]) * amount), 0, 255);
+      pData[i + 2] = DitherEngine.clamp(Math.round(pData[i + 2] + (pData[i + 2] - bData[i + 2]) * amount), 0, 255);
+    }
+  }
+
+  // 2. Scale
+  const scale = params.scale ?? 1;
+  const scaledDown = DitherEngine.applyScale(processed, scale);
+
+  // 3. GPU reaction-diffusion
+  let dithered = WebGLDither.processReactionDiffusion(scaledDown, params.palette, {});
+  if (!dithered) return null;
+
+  // 4. Upscale
+  if (scale > 1) {
+    dithered = DitherEngine.upscaleNearest(dithered, originalWidth, originalHeight);
+  }
+
+  // 5. Blend
+  const blendAmount = (params.blend ?? 100) / 100;
+  if (blendAmount < 1) {
+    const src = processed.data;
+    const dst = dithered.data;
+    for (let i = 0; i < dst.length; i += 4) {
+      dst[i] = Math.round(src[i] * (1 - blendAmount) + dst[i] * blendAmount);
+      dst[i + 1] = Math.round(src[i + 1] * (1 - blendAmount) + dst[i + 1] * blendAmount);
+      dst[i + 2] = Math.round(src[i + 2] * (1 - blendAmount) + dst[i + 2] * blendAmount);
+    }
+  }
+
+  return { data: dithered.data, width: originalWidth, height: originalHeight };
+}
 
 /**
  * GPU-accelerated processing pipeline.

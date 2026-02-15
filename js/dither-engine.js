@@ -3473,8 +3473,8 @@ const DitherEngine = (() => {
           }
 
           // DLA: random walk particles, stick when adjacent to cluster
-          const maxParticles = Math.min(Math.floor(totalPixels * 0.15), 50000);
-          const maxSteps = Math.max(width, height) * 2;
+          const maxParticles = Math.min(Math.floor(totalPixels * 0.08), 15000);
+          const maxSteps = Math.max(width, height);
 
           for (let p = 0; p < maxParticles; p++) {
             let px = Math.floor(rng() * width);
@@ -3542,6 +3542,10 @@ const DitherEngine = (() => {
             }
           }
 
+          // Pre-compute darkest palette color (was incorrectly sorted per-pixel before)
+          const sortedPal = palette.slice().sort((a, b) => luminance(a[0], a[1], a[2]) - luminance(b[0], b[1], b[2]));
+          const darkestColor = sortedPal[0];
+
           // Use density as threshold against luminance, quantize to palette
           for (let i = 0; i < totalPixels; i++) {
             const si = i * 4;
@@ -3554,12 +3558,9 @@ const DitherEngine = (() => {
               data[si + 1] = nc[1];
               data[si + 2] = nc[2];
             } else {
-              // Use darkest palette color for cluster areas
-              const sorted = palette.slice().sort((a, b) => luminance(a[0], a[1], a[2]) - luminance(b[0], b[1], b[2]));
-              const nc = sorted[0];
-              data[si] = nc[0];
-              data[si + 1] = nc[1];
-              data[si + 2] = nc[2];
+              data[si] = darkestColor[0];
+              data[si + 1] = darkestColor[1];
+              data[si + 2] = darkestColor[2];
             }
             data[si + 3] = src[si + 3];
           }
@@ -3582,20 +3583,24 @@ const DitherEngine = (() => {
             return { data, width, height };
           }
 
-          const totalPixels = width * height;
+          // Simulate at reduced resolution for performance, then upscale
+          const maxSimDim = 256;
+          const scaleFactor = Math.max(1, Math.ceil(Math.max(width, height) / maxSimDim));
+          const simW = Math.ceil(width / scaleFactor);
+          const simH = Math.ceil(height / scaleFactor);
+          const simPixels = simW * simH;
+
           const Du = 0.16, Dv = 0.08, f = 0.035, k = 0.065;
-          const iterations = 200;
+          const iterations = Math.min(150, Math.max(80, Math.floor(40000 / Math.sqrt(simPixels))));
 
           // Initialize grids
-          let U = new Float32Array(totalPixels);
-          let V = new Float32Array(totalPixels);
-          let nextU = new Float32Array(totalPixels);
-          let nextV = new Float32Array(totalPixels);
+          let U = new Float32Array(simPixels);
+          let V = new Float32Array(simPixels);
+          let nextU = new Float32Array(simPixels);
+          let nextV = new Float32Array(simPixels);
 
-          // U = 1 everywhere, V = 0 everywhere
-          for (let i = 0; i < totalPixels; i++) {
+          for (let i = 0; i < simPixels; i++) {
             U[i] = 1.0;
-            V[i] = 0.0;
           }
 
           // Seed small random patches of V
@@ -3607,17 +3612,17 @@ const DitherEngine = (() => {
             };
           })(123);
 
-          const numSeeds = Math.max(5, Math.floor(Math.sqrt(totalPixels) / 10));
+          const numSeeds = Math.max(5, Math.floor(Math.sqrt(simPixels) / 10));
           for (let s = 0; s < numSeeds; s++) {
-            const cx = Math.floor(rng() * width);
-            const cy = Math.floor(rng() * height);
-            const r = Math.max(2, Math.floor(Math.min(width, height) / 40));
+            const cx = Math.floor(rng() * simW);
+            const cy = Math.floor(rng() * simH);
+            const r = Math.max(2, Math.floor(Math.min(simW, simH) / 40));
             for (let dy = -r; dy <= r; dy++) {
               for (let dx = -r; dx <= r; dx++) {
                 const nx = cx + dx;
                 const ny = cy + dy;
-                if (nx >= 0 && nx < width && ny >= 0 && ny < height && dx * dx + dy * dy <= r * r) {
-                  const idx = ny * width + nx;
+                if (nx >= 0 && nx < simW && ny >= 0 && ny < simH && dx * dx + dy * dy <= r * r) {
+                  const idx = ny * simW + nx;
                   V[idx] = 1.0;
                   U[idx] = 0.5;
                 }
@@ -3625,20 +3630,19 @@ const DitherEngine = (() => {
             }
           }
 
-          // Run Gray-Scott iterations
+          // Run Gray-Scott iterations at reduced resolution
           const dt = 1.0;
           for (let iter = 0; iter < iterations; iter++) {
-            for (let y = 0; y < height; y++) {
-              for (let x = 0; x < width; x++) {
-                const idx = y * width + x;
+            for (let y = 0; y < simH; y++) {
+              for (let x = 0; x < simW; x++) {
+                const idx = y * simW + x;
                 const u = U[idx];
                 const v = V[idx];
 
-                // Laplacian with clamped boundary
                 const left = x > 0 ? idx - 1 : idx;
-                const right = x < width - 1 ? idx + 1 : idx;
-                const up = y > 0 ? idx - width : idx;
-                const down = y < height - 1 ? idx + width : idx;
+                const right = x < simW - 1 ? idx + 1 : idx;
+                const up = y > 0 ? idx - simW : idx;
+                const down = y < simH - 1 ? idx + simW : idx;
 
                 const lapU = U[left] + U[right] + U[up] + U[down] - 4 * u;
                 const lapV = V[left] + V[right] + V[up] + V[down] - 4 * v;
@@ -3647,25 +3651,35 @@ const DitherEngine = (() => {
                 nextU[idx] = u + dt * (Du * lapU - uvv + f * (1 - u));
                 nextV[idx] = v + dt * (Dv * lapV + uvv - (f + k) * v);
 
-                // Clamp
                 if (nextU[idx] < 0) nextU[idx] = 0;
                 if (nextU[idx] > 1) nextU[idx] = 1;
                 if (nextV[idx] < 0) nextV[idx] = 0;
                 if (nextV[idx] > 1) nextV[idx] = 1;
               }
             }
-            // Swap buffers
             const tmpU = U; U = nextU; nextU = tmpU;
             const tmpV = V; V = nextV; nextV = tmpV;
           }
 
-          // Use V pattern to modulate source luminance threshold, quantize to palette
+          // Apply V pattern at full resolution using bilinear interpolation
+          const totalPixels = width * height;
           for (let i = 0; i < totalPixels; i++) {
             const si = i * 4;
-            const srcLum = luminance(src[si], src[si + 1], src[si + 2]) / 255;
-            const vVal = V[i];
+            const px = (i % width) / scaleFactor;
+            const py = Math.floor(i / width) / scaleFactor;
 
-            // Modulate: combine source color with reaction-diffusion pattern
+            // Bilinear sample from V grid
+            const x0 = Math.min(Math.floor(px), simW - 1);
+            const y0 = Math.min(Math.floor(py), simH - 1);
+            const x1 = Math.min(x0 + 1, simW - 1);
+            const y1 = Math.min(y0 + 1, simH - 1);
+            const fx = px - x0;
+            const fy = py - y0;
+            const vVal = V[y0 * simW + x0] * (1 - fx) * (1 - fy)
+                       + V[y0 * simW + x1] * fx * (1 - fy)
+                       + V[y1 * simW + x0] * (1 - fx) * fy
+                       + V[y1 * simW + x1] * fx * fy;
+
             const modR = Math.round(src[si] * (1 - vVal * 0.7));
             const modG = Math.round(src[si + 1] * (1 - vVal * 0.7));
             const modB = Math.round(src[si + 2] * (1 - vVal * 0.7));
@@ -3720,8 +3734,8 @@ const DitherEngine = (() => {
             };
           })(77);
 
-          // Generate ~2000 seed points, weighted by inverse luminance
-          const numPoints = Math.min(2000, Math.floor(totalPixels / 4));
+          // Generate seed points, weighted by inverse luminance
+          const numPoints = Math.min(1200, Math.floor(totalPixels / 8));
           const points = [];
           for (let i = 0; i < numPoints; i++) {
             // Weighted random sampling using rejection method
@@ -3739,8 +3753,8 @@ const DitherEngine = (() => {
             points.push([px, py]);
           }
 
-          // Lloyd relaxation iterations
-          const lloydIterations = 5;
+          // Lloyd relaxation iterations (3 is visually sufficient)
+          const lloydIterations = 3;
           // Use grid-based spatial lookup for Voronoi
           const gridCellSize = Math.max(4, Math.floor(Math.sqrt(totalPixels / numPoints)));
 
@@ -3765,7 +3779,7 @@ const DitherEngine = (() => {
             }
 
             // Sample pixels (subsample for performance)
-            const step = Math.max(1, Math.floor(Math.sqrt(totalPixels / 20000)));
+            const step = Math.max(1, Math.floor(Math.sqrt(totalPixels / 10000)));
             for (let y = 0; y < height; y += step) {
               for (let x = 0; x < width; x += step) {
                 const gx = Math.floor(x / gridCellSize);
@@ -3917,8 +3931,8 @@ const DitherEngine = (() => {
           }
 
           // Place seed points on a grid
-          const spacing = options.spacing || Math.max(4, Math.floor(Math.min(width, height) / 60));
-          const maxSteps = 30;
+          const spacing = options.spacing || Math.max(4, Math.floor(Math.min(width, height) / 50));
+          const maxSteps = 18;
 
           for (let sy = spacing; sy < height - spacing; sy += spacing) {
             for (let sx = spacing; sx < width - spacing; sx += spacing) {
