@@ -443,8 +443,12 @@ const DitterApp = (() => {
       doRenderBtn.disabled = false;
 
       if (blob) {
-        DitterExport.downloadBlob(blob, filename + '.webm');
-        DitterUI.hideModal('modal-video-render');
+        const saved = await DitterExport.saveBlobAs(blob, filename + '.webm', [
+          { name: 'WebM Video', extensions: ['webm'] }
+        ]);
+        if (saved) {
+          DitterUI.hideModal('modal-video-render');
+        }
       }
     });
   }

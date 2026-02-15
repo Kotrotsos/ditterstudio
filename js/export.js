@@ -64,14 +64,16 @@ const DitterExport = (() => {
         break;
     }
 
-    // Convert to blob and download
+    // Convert to blob and save
     const qualityFloat = format === 'png' ? undefined : quality / 100;
     exportCanvas.toBlob((blob) => {
       if (!blob) {
         console.error('Failed to create export blob');
         return;
       }
-      downloadBlob(blob, `${filename}.${ext}`);
+      saveBlobAs(blob, filename + '.' + ext, [
+        { name: ext.toUpperCase() + ' Image', extensions: [ext] }
+      ]);
     }, mimeType, qualityFloat);
   }
 
@@ -89,6 +91,36 @@ const DitterExport = (() => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Save a blob with a native "Save As" dialog (Tauri) or browser fallback.
+   * @param {Blob} blob
+   * @param {string} defaultFilename - Suggested filename
+   * @param {Array<{name: string, extensions: string[]}>} [filters] - File type filters
+   * @returns {Promise<boolean>} true if saved, false if cancelled
+   */
+  async function saveBlobAs(blob, defaultFilename, filters) {
+    // Try Tauri native save dialog
+    if (window.__TAURI__ && window.__TAURI__.dialog && window.__TAURI__.fs) {
+      try {
+        const path = await window.__TAURI__.dialog.save({
+          defaultPath: defaultFilename,
+          filters: filters || []
+        });
+        if (!path) return false; // User cancelled
+
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        await window.__TAURI__.fs.writeFile(path, bytes);
+        return true;
+      } catch (e) {
+        console.warn('Tauri save dialog failed, falling back to download:', e);
+      }
+    }
+
+    // Fallback: browser download
+    downloadBlob(blob, defaultFilename);
+    return true;
   }
 
   /**
@@ -122,6 +154,7 @@ const DitterExport = (() => {
   return {
     exportImage,
     toDataURL,
-    downloadBlob
+    downloadBlob,
+    saveBlobAs
   };
 })();

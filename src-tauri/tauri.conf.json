@@ -10,6 +10,7 @@
     "beforeBuildCommand": "node scripts/build.js"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Ditter",
