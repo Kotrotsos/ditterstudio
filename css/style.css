@@ -1153,3 +1153,112 @@ input[type="number"]::-webkit-inner-spin-button {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* --- Filmstrip --- */
+.filmstrip-area {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.filmstrip-area.hidden {
+  display: none !important;
+}
+
+.filmstrip-controls {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.frame-counter,
+.frame-time {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.frame-scrubber {
+  flex: 1;
+  min-width: 80px;
+}
+
+.filmstrip-scroll {
+  overflow-x: auto;
+  height: 92px;
+  padding: 6px 12px;
+}
+
+.filmstrip-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.filmstrip-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.filmstrip-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+.filmstrip-track {
+  display: flex;
+  gap: 4px;
+  height: 80px;
+  min-width: max-content;
+}
+
+.filmstrip-frame {
+  height: 80px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.filmstrip-frame:hover {
+  border-color: var(--border-light);
+}
+
+.filmstrip-frame.active {
+  border-color: var(--accent);
+}
+
+/* --- Render Progress --- */
+.render-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.render-progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-elevated);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.render-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 200ms ease;
+}
+
+.render-progress-text {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}

@@ -6,7 +6,7 @@
 
 const DitterApp = (() => {
   let isInitialized = false;
-  let sourceMode = 'none'; // 'none', 'gradient', 'image'
+  let sourceMode = 'none'; // 'none', 'gradient', 'image', 'video'
   let lastSourceWidth = 0;
   let lastSourceHeight = 0;
 
@@ -26,6 +26,10 @@ const DitterApp = (() => {
       onProcessingEnd: () => {
         const indicator = document.getElementById('processing-indicator');
         if (indicator) indicator.classList.remove('visible');
+        // Cache video frame result
+        if (DitterVideo.isActive()) {
+          DitterVideo.cacheCurrentFrame(DitterCanvas.getResultImageData());
+        }
         // Update Studio preview if it's open
         if (DitterStudio.isVisible()) {
           DitterStudio.updatePreview();
@@ -49,7 +53,9 @@ const DitterApp = (() => {
     // Initialize UI
     DitterUI.init({
       onSettingsChanged: (params) => {
-        if (DitterCanvas.hasImage()) {
+        if (DitterVideo.isActive()) {
+          DitterVideo.reprocessCurrentFrame();
+        } else if (DitterCanvas.hasImage()) {
           DitterCanvas.processImage(params);
         }
       },
@@ -72,6 +78,23 @@ const DitterApp = (() => {
     // Initialize studio
     DitterStudio.init();
 
+    // Initialize video module
+    DitterVideo.init({
+      onFrameReady: null,
+      onModeChanged: (active) => {
+        const filmstrip = document.getElementById('filmstrip-area');
+        const renderBtn = document.getElementById('btn-render-video');
+        if (active) {
+          if (filmstrip) filmstrip.classList.remove('hidden');
+          if (renderBtn) renderBtn.classList.remove('hidden');
+        } else {
+          if (filmstrip) filmstrip.classList.add('hidden');
+          if (renderBtn) renderBtn.classList.add('hidden');
+        }
+        DitterCanvas.resize();
+      }
+    });
+
     // Set up file import
     setupFileImport();
 
@@ -83,6 +106,9 @@ const DitterApp = (() => {
 
     // Set up color/gradient input creation
     setupCreateInput();
+
+    // Set up video render
+    setupVideoRender();
 
     // Set up studio button
     setupStudio();
@@ -142,7 +168,7 @@ const DitterApp = (() => {
       dropZone.classList.remove('active');
 
       const files = e.dataTransfer.files;
-      if (files.length > 0 && files[0].type.startsWith('image/')) {
+      if (files.length > 0 && (files[0].type.startsWith('image/') || files[0].type.startsWith('video/'))) {
         loadFile(files[0]);
       }
     });
@@ -154,11 +180,23 @@ const DitterApp = (() => {
    */
   async function loadFile(file) {
     try {
-      await DitterCanvas.loadImage(file);
-      sourceMode = 'image';
-      DitterUI.showSourceImageMode();
+      if (file.type.startsWith('video/')) {
+        await DitterVideo.loadVideo(file);
+        sourceMode = 'video';
+        DitterUI.showSourceImageMode();
+        // Hide drop zone
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.classList.add('hidden');
+      } else {
+        if (DitterVideo.isActive()) {
+          DitterVideo.exitVideoMode();
+        }
+        await DitterCanvas.loadImage(file);
+        sourceMode = 'image';
+        DitterUI.showSourceImageMode();
+      }
     } catch (err) {
-      console.error('Failed to load image:', err);
+      console.error('Failed to load file:', err);
     }
   }
 
@@ -352,6 +390,66 @@ const DitterApp = (() => {
   }
 
   /**
+   * Set up video render modal and button.
+   */
+  function setupVideoRender() {
+    const renderBtn = document.getElementById('btn-render-video');
+    const doRenderBtn = document.getElementById('btn-do-render');
+    const cancelBtn = document.getElementById('btn-render-cancel');
+    const progressArea = document.getElementById('render-progress-area');
+    const progressBar = document.getElementById('render-progress-bar');
+    const progressText = document.getElementById('render-progress-text');
+    const qualitySlider = document.getElementById('render-quality');
+    const qualityDisplay = document.getElementById('val-render-quality');
+
+    renderBtn.addEventListener('click', () => {
+      if (!DitterVideo.isActive()) return;
+      DitterUI.showModal('modal-video-render');
+    });
+
+    qualitySlider.addEventListener('input', () => {
+      qualityDisplay.textContent = qualitySlider.value;
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      DitterVideo.cancelRender();
+    });
+
+    doRenderBtn.addEventListener('click', async () => {
+      if (DitterVideo.isCurrentlyRendering()) return;
+
+      const renderFps = parseInt(document.getElementById('render-fps').value);
+      const quality = parseInt(qualitySlider.value);
+      const filename = document.getElementById('render-filename').value || 'ditter-video';
+
+      // Show progress
+      progressArea.classList.remove('hidden');
+      doRenderBtn.disabled = true;
+      progressBar.style.width = '0%';
+      progressText.textContent = '0%';
+
+      const blob = await DitterVideo.renderVideo({
+        fps: renderFps,
+        quality: quality,
+        onProgress: (pct) => {
+          const percent = Math.round(pct * 100);
+          progressBar.style.width = percent + '%';
+          progressText.textContent = percent + '%';
+        }
+      });
+
+      // Reset UI
+      progressArea.classList.add('hidden');
+      doRenderBtn.disabled = false;
+
+      if (blob) {
+        DitterExport.downloadBlob(blob, filename + '.webm');
+        DitterUI.hideModal('modal-video-render');
+      }
+    });
+  }
+
+  /**
    * Set up studio modal.
    */
   function setupStudio() {
@@ -424,6 +522,31 @@ const DitterApp = (() => {
         e.preventDefault();
         document.getElementById('file-input').click();
         return;
+      }
+
+      // Video frame navigation
+      if (DitterVideo.isActive()) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          DitterVideo.prevFrame();
+          return;
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          DitterVideo.nextFrame();
+          return;
+        } else if (e.key === ' ') {
+          e.preventDefault();
+          DitterVideo.togglePlayback();
+          return;
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          DitterVideo.goToFrame(0);
+          return;
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          DitterVideo.goToFrame(Infinity);
+          return;
+        }
       }
 
       // + / -: Zoom

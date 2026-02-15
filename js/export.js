@@ -121,6 +121,7 @@ const DitterExport = (() => {
 
   return {
     exportImage,
-    toDataURL
+    toDataURL,
+    downloadBlob
   };
 })();
