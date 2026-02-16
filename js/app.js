@@ -242,24 +242,49 @@ const DitterApp = (() => {
     const qualitySlider = document.getElementById('export-quality');
     const qualityDisplay = document.getElementById('val-export-quality');
     const qualityGroup = document.getElementById('export-quality-group');
+    const scaleGroup = document.getElementById('export-scale-group');
+    const svgWarning = document.getElementById('export-svg-warning');
+    const svgWarningText = document.getElementById('export-svg-warning-text');
     const doExportBtn = document.getElementById('btn-do-export');
 
     // Hide quality group initially since PNG is default
     qualityGroup.style.display = 'none';
 
+    function updateExportUI() {
+      const fmt = formatSelect.value;
+      const isSVG = fmt === 'svg';
+
+      qualityGroup.style.display = (fmt === 'png' || isSVG) ? 'none' : '';
+      scaleGroup.style.display = isSVG ? 'none' : '';
+
+      if (isSVG && DitterCanvas.hasImage()) {
+        const imageData = DitterCanvas.getResultImageData();
+        if (imageData) {
+          const info = DitterExport.getSVGInfo(imageData);
+          if (info.cellCount > 50000) {
+            svgWarningText.textContent =
+              `Large image: ${info.cols} x ${info.rows} cells (${info.cellCount.toLocaleString()} rects). ` +
+              `Cell size: ${info.cellSize}px. The SVG file may be very large. ` +
+              `Consider increasing the Scale setting to reduce cell count.`;
+            svgWarning.classList.remove('hidden');
+          } else {
+            svgWarningText.textContent =
+              `${info.cols} x ${info.rows} cells, ${info.cellCount.toLocaleString()} rects. Cell size: ${info.cellSize}px.`;
+            svgWarning.classList.remove('hidden');
+          }
+        }
+      } else {
+        svgWarning.classList.add('hidden');
+      }
+    }
+
     exportBtn.addEventListener('click', () => {
       if (!DitterCanvas.hasImage()) return;
+      updateExportUI();
       DitterUI.showModal('modal-export');
     });
 
-    // Show/hide quality slider based on format
-    formatSelect.addEventListener('change', () => {
-      if (formatSelect.value === 'png') {
-        qualityGroup.style.display = 'none';
-      } else {
-        qualityGroup.style.display = '';
-      }
-    });
+    formatSelect.addEventListener('change', updateExportUI);
 
     qualitySlider.addEventListener('input', () => {
       qualityDisplay.textContent = qualitySlider.value;
@@ -269,12 +294,19 @@ const DitterApp = (() => {
       const imageData = DitterCanvas.getResultImageData();
       if (!imageData) return;
 
-      DitterExport.exportImage(imageData, {
-        format: formatSelect.value,
-        quality: parseInt(qualitySlider.value),
-        scale: parseInt(document.getElementById('export-scale').value),
-        filename: document.getElementById('export-filename').value || 'ditter-export'
-      });
+      const fmt = formatSelect.value;
+      const filename = document.getElementById('export-filename').value || 'ditter-export';
+
+      if (fmt === 'svg') {
+        DitterExport.exportSVG(imageData, { filename });
+      } else {
+        DitterExport.exportImage(imageData, {
+          format: fmt,
+          quality: parseInt(qualitySlider.value),
+          scale: parseInt(document.getElementById('export-scale').value),
+          filename
+        });
+      }
 
       DitterUI.hideModal('modal-export');
     });

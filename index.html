@@ -534,13 +534,17 @@
               <option value="png">PNG</option>
               <option value="jpg">JPEG</option>
               <option value="webp">WebP</option>
+              <option value="svg">SVG (Vector)</option>
             </select>
+          </div>
+          <div id="export-svg-warning" class="export-warning hidden">
+            <span id="export-svg-warning-text"></span>
           </div>
           <div class="control-group" id="export-quality-group">
             <label for="export-quality">Quality <span id="val-export-quality" class="slider-value">92</span></label>
             <input type="range" id="export-quality" class="slider" min="1" max="100" value="92" step="1">
           </div>
-          <div class="control-group">
+          <div class="control-group" id="export-scale-group">
             <label for="export-scale">Scale</label>
             <select id="export-scale" class="select">
               <option value="1">1x (Original)</option>

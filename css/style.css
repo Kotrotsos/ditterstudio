@@ -1093,6 +1093,18 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
 }
 
+/* --- Export Warning --- */
+.export-warning {
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-md);
+  line-height: 1.4;
+}
+
 /* --- Utility --- */
 .hidden {
   display: none !important;
