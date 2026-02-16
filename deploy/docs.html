@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ditter Manual</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e10;
+    --bg2: #18181b;
+    --bg3: #1e1e22;
+    --bg4: #28282e;
+    --text: #e4e4e8;
+    --text2: #a0a0aa;
+    --text3: #6a6a76;
+    --accent: #8b5cf6;
+    --accent2: #a78bfa;
+    --border: #2a2a32;
+    --green: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --font: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 220px;
+    height: 100vh;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+    overflow-y: auto;
+    z-index: 100;
+  }
+  nav h2 {
+    font-size: 16px;
+    color: var(--accent);
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+  nav a {
+    display: block;
+    color: var(--text2);
+    text-decoration: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    margin-bottom: 2px;
+    transition: background 0.15s, color 0.15s;
+  }
+  nav a:hover { background: var(--bg3); color: var(--text); }
+  nav .nav-section {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin: 16px 0 6px 8px;
+  }
+
+  /* MAIN */
+  main {
+    margin-left: 220px;
+    max-width: 900px;
+    padding: 40px 48px 120px;
+  }
+
+  h1 {
+    font-size: 32px;
+    color: var(--text);
+    margin-bottom: 8px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .subtitle {
+    color: var(--text3);
+    font-size: 14px;
+    margin-bottom: 40px;
+  }
+
+  h2 {
+    font-size: 20px;
+    color: var(--accent2);
+    margin: 48px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 15px;
+    color: var(--text);
+    margin: 28px 0 10px;
+  }
+  h4 {
+    font-size: 13px;
+    color: var(--text2);
+    margin: 16px 0 6px;
+  }
+
+  p { color: var(--text2); margin-bottom: 12px; }
+
+  /* SCREENSHOTS */
+  .screenshot {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 16px 0 24px;
+    background: var(--bg3);
+  }
+  .screenshot img {
+    width: 100%;
+    display: block;
+  }
+  .screenshot-caption {
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--text3);
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+  }
+
+  /* TABLES */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 24px;
+    font-size: 12px;
+  }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--bg3);
+    color: var(--text2);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+  }
+  tr:hover td { background: var(--bg2); }
+  td code {
+    background: var(--bg4);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--accent2);
+  }
+
+  /* TAGS */
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .tag-gpu { background: rgba(52, 211, 153, 0.15); color: var(--green); }
+  .tag-cpu { background: rgba(248, 113, 113, 0.1); color: var(--text3); }
+  .tag-fast { background: rgba(52, 211, 153, 0.15); color: var(--green); }
+  .tag-moderate { background: rgba(251, 191, 36, 0.15); color: var(--yellow); }
+  .tag-slow { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+
+  /* CARD GRID */
+  .card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 16px 0 24px;
+  }
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .card-title {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .card-desc {
+    font-size: 11px;
+    color: var(--text3);
+    line-height: 1.5;
+  }
+  .card-meta {
+    margin-top: 8px;
+    display: flex;
+    gap: 6px;
+  }
+
+  /* PRESET CARDS */
+  .preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 12px 0 24px;
+  }
+  .preset-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+  }
+  .preset-name { font-size: 12px; color: var(--text); font-weight: 600; margin-bottom: 3px; }
+  .preset-info { font-size: 10px; color: var(--text3); }
+
+  /* PALETTE SWATCHES */
+  .palette-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .palette-name {
+    font-size: 12px;
+    color: var(--text2);
+    width: 140px;
+    flex-shrink: 0;
+  }
+  .swatch-strip {
+    display: flex;
+    gap: 2px;
+  }
+  .swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* SHORTCUTS */
+  kbd {
+    display: inline-block;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 11px;
+    color: var(--text2);
+    font-family: var(--font);
+  }
+  .shortcut-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .shortcut-row span:first-child { color: var(--text2); }
+
+  /* LIGHT THEME */
+  [data-theme="light"] {
+    --bg: #f5f5f7;
+    --bg2: #eaeaee;
+    --bg3: #e0e0e6;
+    --bg4: #d4d4dc;
+    --text: #1a1a1e;
+    --text2: #4a4a56;
+    --text3: #7a7a88;
+    --accent: #7c3aed;
+    --accent2: #6d28d9;
+    --border: #c8c8d0;
+    --green: #059669;
+    --red: #dc2626;
+    --yellow: #d97706;
+  }
+  [data-theme="light"] .swatch {
+    border-color: rgba(0,0,0,0.12);
+  }
+
+  /* TOP-RIGHT CONTROLS */
+  .top-controls {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 200;
+    display: flex;
+    gap: 6px;
+  }
+  .top-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    font-family: var(--font);
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .top-btn:hover { background: var(--bg4); color: var(--text); }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    nav { display: none; }
+    main { margin-left: 0; padding: 24px 16px 80px; }
+    .card-grid { grid-template-columns: 1fr; }
+    .preset-grid { grid-template-columns: 1fr 1fr; }
+    .top-controls { top: 8px; right: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-controls">
+  <button class="top-btn" id="zoom-btn">150%</button>
+  <button class="top-btn" id="theme-toggle">Light</button>
+</div>
+
+<nav>
+  <h2>Ditter</h2>
+  <a href="#overview">Overview</a>
+  <a href="#getting-started">Getting Started</a>
+  <div class="nav-section">Algorithms</div>
+  <a href="#error-diffusion">Error Diffusion</a>
+  <a href="#ordered">Ordered Dithering</a>
+  <a href="#halftone">Halftone</a>
+  <a href="#noise">Noise / Stochastic</a>
+  <a href="#pattern">Pattern</a>
+  <a href="#artistic">Artistic</a>
+  <a href="#threshold">Threshold</a>
+  <a href="#creative">Creative / Experimental</a>
+  <div class="nav-section">Post-Processing</div>
+  <a href="#effects">Effects Layer</a>
+  <div class="nav-section">Reference</div>
+  <a href="#palettes">Color Palettes</a>
+  <a href="#presets">Presets</a>
+  <a href="#controls">Controls</a>
+  <a href="#studio">Dither Studio</a>
+  <a href="#shortcuts">Keyboard Shortcuts</a>
+  <a href="#performance">Performance</a>
+  <a href="#export">Export</a>
+  <a href="#video">Video</a>
+  <a href="#packaging">Packaging</a>
+</nav>
+
+<main>
+
+<!-- OVERVIEW -->
+<h1>Ditter</h1>
+<p class="subtitle">A real-time dithering tool with 60+ algorithms, GPU acceleration, video support, and a pattern playground.</p>
+
+<div class="screenshot">
+  <img src="screenshots/01-landing.png" alt="Ditter landing page">
+  <div class="screenshot-caption">The Ditter interface: canvas area with toolbar, resizable control panel on the right.</div>
+</div>
+
+<p>Ditter is a browser-based (and desktop via Tauri) image and video dithering tool. It transforms images and video frames using a wide variety of dithering, halftone, pattern, and creative algorithms, all processed in real-time. Many algorithms are GPU-accelerated via WebGL2 for instant feedback even on large images. Videos can be processed frame-by-frame and rendered to WebM.</p>
+
+<section id="overview">
+<h2>How It Works</h2>
+<p>The processing pipeline runs in this order for every parameter change:</p>
+<p><strong>1. Adjustments</strong> (contrast, midtones, highlights, invert) &rarr; <strong>2. Blur / Smoothing / Depth</strong> &rarr; <strong>3. Scale</strong> (downscale for pixelation) &rarr; <strong>4. Dither Algorithm</strong> &rarr; <strong>5. Upscale</strong> (back to original size) &rarr; <strong>6. Blend</strong> (mix with original) &rarr; <strong>7. Effects Layer</strong> (post-processing)</p>
+<p>Steps 1-6 run in a Web Worker off the main thread. If WebGL2 is available, per-pixel-independent algorithms run on the GPU. Sequential algorithms (error diffusion, creative) run on the CPU with optimized routines. Step 7 (Effects Layer) runs on the main thread after the dithered result is returned, and is skipped entirely when no effects are active. When only effects change, the dither step is not re-run, making adjustments instant.</p>
+</section>
+
+<!-- GETTING STARTED -->
+<section id="getting-started">
+<h2>Getting Started</h2>
+<h3>Loading an Image</h3>
+<p>Drag and drop an image onto the canvas, click the drop zone to browse, or use <kbd>Ctrl</kbd>+<kbd>O</kbd> to open the file picker. Supported formats: PNG, JPG, WebP, GIF.</p>
+
+<h3>Loading a Video</h3>
+<p>Drag and drop a video file (MP4, WebM, or QuickTime) onto the canvas, or use the file picker. Ditter will extract frames and display a filmstrip below the canvas. Each frame is dithered using the same processing pipeline as images. See the <a href="#video">Video</a> section for full details.</p>
+
+<h3>Generating a Gradient</h3>
+<p>Click "Or generate a gradient" in the drop zone (or "Generate Gradient" in the Source section) to create a synthetic gradient. Choose between solid color, linear gradient, or radial gradient. Adjust colors, dimensions, and angle.</p>
+
+<div class="screenshot">
+  <img src="screenshots/02-gradient-loaded.png" alt="Gradient loaded with Floyd-Steinberg dithering">
+  <div class="screenshot-caption">A generated gradient processed with Floyd-Steinberg error diffusion.</div>
+</div>
+
+<h3>Choosing an Algorithm</h3>
+<p>Use the <strong>Category</strong> dropdown to pick an algorithm family, then the <strong>Algorithm</strong> dropdown to select a specific method. Results update in real-time as you change settings.</p>
+
+<h3>Toolbar</h3>
+<p>The header toolbar provides image transform controls:</p>
+<p><strong>Flip H</strong> / <strong>Flip V</strong> / <strong>Rotate</strong> (90 CW) / <strong>Reset</strong> (undo all transforms)</p>
+</section>
+
+<!-- ALGORITHMS -->
+
+<section id="error-diffusion">
+<h2>Error Diffusion</h2>
+<p>Error diffusion algorithms quantize each pixel to the nearest palette color, then distribute the quantization error to neighboring pixels. This creates organic, film-grain-like dithering with no visible pattern. All error diffusion algorithms are inherently sequential (left-to-right, top-to-bottom) and run on the CPU.</p>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Floyd-Steinberg</div>
+    <div class="card-desc">The classic. Distributes error to 4 neighbors using a 2x3 matrix. The most widely used error diffusion algorithm.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Jarvis-Judice-Ninke</div>
+    <div class="card-desc">Wider 3x5 diffusion kernel. Smoother gradients than Floyd-Steinberg but slightly slower.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Stucki</div>
+    <div class="card-desc">Similar to Jarvis with different weights. Good balance of speed and quality.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Burkes</div>
+    <div class="card-desc">Simplified Stucki with 2-row diffusion. Faster with nearly identical quality.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Sierra (Full / Two-Row / Lite)</div>
+    <div class="card-desc">Three variants: full 3-row, 2-row, and lite. The lite variant is one of the fastest error diffusion methods.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Atkinson</div>
+    <div class="card-desc">Used in early Macintosh. Diffuses only 6/8 of the error, creating higher-contrast results with more white space.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Stevenson-Arce</div>
+    <div class="card-desc">Hexagonal grid error diffusion. Works on a shifted grid for more uniform distribution.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Riemersma</div>
+    <div class="card-desc">Hilbert-curve path error diffusion. Walks a space-filling curve, producing very uniform results with no directional bias.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Minimized Average Error</div>
+    <div class="card-desc">Wide 5x3 kernel optimized to minimize average error across the neighborhood.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+</div>
+</section>
+
+<section id="ordered">
+<h2>Ordered Dithering</h2>
+<p>Ordered dithering compares each pixel against a repeating threshold matrix (Bayer matrix). The result is a regular, tile-like pattern. All Bayer variants are GPU-accelerated.</p>
+
+<div class="screenshot">
+  <img src="screenshots/06-retro-gameboy.png" alt="Bayer 4x4 with Game Boy palette">
+  <div class="screenshot-caption">Bayer 4x4 ordered dithering with the Game Boy palette, a classic retro look.</div>
+</div>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Bayer 2x2 / 4x4 / 8x8 / 16x16</div>
+    <div class="card-desc">Classic Bayer matrix dithering at different resolutions. Larger matrices produce smoother gradients with less visible grid pattern.</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-fast">Instant</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Clustered Dot 4x4 / 8x8</div>
+    <div class="card-desc">Ordered dithering using clustered-dot threshold maps. Creates dot-like patterns similar to printed halftones.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Void and Cluster</div>
+    <div class="card-desc">Blue-noise ordered dithering from a void-and-cluster threshold map. Very uniform with no visible pattern structure.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+</div>
+</section>
+
+<section id="halftone">
+<h2>Halftone</h2>
+<p>Halftone algorithms simulate traditional printing. They divide the image into cells and render each cell as a shape (dot, line, diamond, etc.) whose size is proportional to the local darkness. All halftone algorithms are GPU-accelerated.</p>
+
+<div class="screenshot">
+  <img src="screenshots/04-halftone.png" alt="Dot halftone">
+  <div class="screenshot-caption">Dot Halftone, the classic newspaper printing effect.</div>
+</div>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Dot Halftone</div>
+    <div class="card-desc">Classic circular dots. Brighter areas get smaller dots, darker areas get larger ones.</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-fast">Instant</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Line Halftone</div>
+    <div class="card-desc">Horizontal lines of varying thickness. Thicker = darker.</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-fast">Instant</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Diamond / Cross / Square / Star</div>
+    <div class="card-desc">Shape variations on the halftone theme: Manhattan distance (diamond), min-axis (cross), Chebyshev distance (square), and angular modulation (star).</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-fast">Instant</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Ellipse Halftone</div>
+    <div class="card-desc">Elliptical dot shapes for a more print-like appearance.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+</div>
+</section>
+
+<section id="noise">
+<h2>Noise / Stochastic</h2>
+<p>Noise-based dithering uses random or pseudo-random threshold values per pixel. These create organic, grain-like textures with no regular pattern.</p>
+
+<div class="screenshot">
+  <img src="screenshots/11-blue-noise-cyberpunk.png" alt="Blue noise with Cyberpunk palette">
+  <div class="screenshot-caption">Blue Noise dithering with the Cyberpunk color palette.</div>
+</div>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Random Noise</div>
+    <div class="card-desc">Simple per-pixel random threshold. Fast but produces visible grain.</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-fast">Instant</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Blue Noise</div>
+    <div class="card-desc">Void-and-cluster blue noise dithering. Visually the most pleasing noise, with high-frequency distribution that avoids clumping.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">White Noise</div>
+    <div class="card-desc">Deterministic seeded white noise. Same seed = same result, useful for consistent output.</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-fast">Instant</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Interleaved Gradient Noise</div>
+    <div class="card-desc">Jorge Jimenez's IGN algorithm. Low-discrepancy noise that produces very clean dithering, commonly used in real-time rendering.</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-fast">Instant</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Perlin Noise</div>
+    <div class="card-desc">Classic 2D Perlin noise as threshold. Creates organic, cloud-like patterns in the dithering.</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-fast">Instant</span></div>
+  </div>
+</div>
+</section>
+
+<section id="pattern">
+<h2>Pattern</h2>
+<p>Pattern algorithms apply geometric, repeating structures as dithering thresholds. The pattern modulates the threshold spatially, creating decorative and structural effects.</p>
+
+<div class="screenshot">
+  <img src="screenshots/10-crosshatch.png" alt="Crosshatch pattern">
+  <div class="screenshot-caption">Crosshatch pattern dithering, mimicking hand-drawn cross-hatching technique.</div>
+</div>
+
+<table>
+  <tr><th>Algorithm</th><th>Description</th><th>Accel</th></tr>
+  <tr><td>Checkerboard</td><td>2x2 alternating pixel pattern</td><td><span class="tag tag-gpu">GPU</span></td></tr>
+  <tr><td>Horizontal Lines</td><td>Varying density horizontal stripes</td><td><span class="tag tag-gpu">GPU</span></td></tr>
+  <tr><td>Vertical Lines</td><td>Varying density vertical stripes</td><td><span class="tag tag-gpu">GPU</span></td></tr>
+  <tr><td>Crosshatch</td><td>Combined H/V + diagonal lines</td><td><span class="tag tag-gpu">GPU</span></td></tr>
+  <tr><td>Diagonal Lines</td><td>45-degree diagonal stripes</td><td><span class="tag tag-gpu">GPU</span></td></tr>
+  <tr><td>Spiral</td><td>Spiral pattern radiating from center</td><td><span class="tag tag-gpu">GPU</span></td></tr>
+  <tr><td>Hexagonal</td><td>Hex grid tiling with distance-from-center threshold</td><td><span class="tag tag-gpu">GPU</span></td></tr>
+  <tr><td>Brick</td><td>Offset rectangular brick wall pattern</td><td><span class="tag tag-gpu">GPU</span></td></tr>
+  <tr><td>Wave Sine</td><td>Undulating sine wave threshold</td><td><span class="tag tag-gpu">GPU</span></td></tr>
+</table>
+</section>
+
+<section id="artistic">
+<h2>Artistic</h2>
+<p>Artistic algorithms go beyond traditional dithering to produce stylized, illustrative effects. These simulate techniques from printmaking, painting, and digital art.</p>
+
+<div class="screenshot">
+  <img src="screenshots/12-sketch.png" alt="Sketch algorithm">
+  <div class="screenshot-caption">Sketch algorithm with Grayscale 8 palette, simulating pencil strokes.</div>
+</div>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Pixel Art</div>
+    <div class="card-desc">Downscales and palette-quantizes for a retro pixel art look. Best combined with Scale > 1.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Sketch</div>
+    <div class="card-desc">Simulates pencil strokes using Sobel edge direction modulated by Perlin noise. Creates directional hatching.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Lichtenstein (Pop Art)</div>
+    <div class="card-desc">Bold pop-art style with large halftone dots, heavy outlines, and high contrast. Inspired by Roy Lichtenstein.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Engraving</div>
+    <div class="card-desc">Simulates line engraving with varying line weight based on luminance.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Pointillism</div>
+    <div class="card-desc">Impressionist-style colored dots scattered with varying size and density.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Mosaic / Voronoi</div>
+    <div class="card-desc">Voronoi cell partitioning. Mosaic averages colors within cells; Voronoi uses palette quantization per cell.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-moderate">Moderate</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Stippling</div>
+    <div class="card-desc">Places dots weighted by darkness. Uses Voronoi-based weighted distribution for natural placement.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-moderate">Moderate</span></div>
+  </div>
+</div>
+</section>
+
+<section id="threshold">
+<h2>Threshold</h2>
+<p>Threshold algorithms quantize pixels based on brightness cutoffs. Simple and fast, they produce bold, high-contrast results.</p>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Simple Threshold</div>
+    <div class="card-desc">Binary threshold: above = light, below = dark. Threshold slider controls the cutoff.</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-fast">Instant</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Multi-Level</div>
+    <div class="card-desc">Posterizes to multiple brightness levels. Creates a staircase of tones.</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-fast">Instant</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Adaptive</div>
+    <div class="card-desc">Local adaptive threshold using an integral image. Threshold varies with local neighborhood brightness, good for uneven lighting.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Otsu</div>
+    <div class="card-desc">Automatically finds the optimal threshold by maximizing inter-class variance in the histogram. No manual threshold needed.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+</div>
+</section>
+
+<section id="creative">
+<h2>Creative / Experimental</h2>
+<p>These algorithms push beyond traditional dithering into generative art, glitch aesthetics, and simulation-based rendering. Some are computationally intensive but produce unique results.</p>
+
+<div class="screenshot">
+  <img src="screenshots/14-pixel-sort.png" alt="Pixel sort">
+  <div class="screenshot-caption">Pixel Sort, a glitch art technique that sorts pixel runs by luminance.</div>
+</div>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Pixel Sort</div>
+    <div class="card-desc">Glitch art technique. Sorts pixel rows by luminance within brightness bands. The Threshold slider controls which pixels get sorted.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Reaction-Diffusion</div>
+    <div class="card-desc">Gray-Scott simulation producing organic Turing patterns. GPU-accelerated with ping-pong framebuffers when WebGL2 is available.</div>
+    <div class="card-meta"><span class="tag tag-gpu">GPU</span> <span class="tag tag-moderate">Moderate</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">DLA Clustering</div>
+    <div class="card-desc">Diffusion-Limited Aggregation. Random-walk particles stick on contact, forming organic branching structures like coral or lightning.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-slow">Slow</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Voronoi Stippling</div>
+    <div class="card-desc">Weighted Voronoi stippling with Lloyd relaxation. Dots converge toward image darkness through iterative optimization.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-moderate">Moderate</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Flow Field</div>
+    <div class="card-desc">Traces streamlines following the image gradient direction. Creates organic, flowing line art where strokes follow edges.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-moderate">Moderate</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">ASCII Art</div>
+    <div class="card-desc">Maps image brightness to character density patterns in a cell grid. Dense characters = dark areas.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Edge-Aware Dither</div>
+    <div class="card-desc">Preserves edges with hard quantization while using Floyd-Steinberg error diffusion in flat areas. Combines the best of both approaches.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Posterize Dither</div>
+    <div class="card-desc">Posterization with Bayer-dithered transitions between color bands. Smooth band blending instead of hard edges.</div>
+    <div class="card-meta"><span class="tag tag-cpu">CPU</span> <span class="tag tag-fast">Fast</span></div>
+  </div>
+</div>
+</section>
+
+<!-- EFFECTS LAYER -->
+<section id="effects">
+<h2>Effects Layer</h2>
+<p>The Effects Layer is a post-processing pipeline that runs after dithering. It provides 16 effects across 4 categories that can be combined to create glitch, color, texture, and distortion effects on your dithered output. Open it by clicking <strong>Effects Layer</strong> in the control panel, which slides open a secondary sidebar.</p>
+
+<p>Effects are applied on the main thread to the cached dithered result. This means changing effect parameters is instant, no re-dithering required. The processing order is: Color &rarr; Chromatic Aberration &rarr; Distort &rarr; Glitch &rarr; Texture.</p>
+
+<h3>Controls</h3>
+<p>The Effects panel has a <strong>master toggle</strong> (enable/disable all effects at once) and a <strong>Reset</strong> button that returns all parameters to their defaults. Each category section is collapsible.</p>
+
+<h3>Glitch (5 effects)</h3>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Scanline Shift</div>
+    <div class="card-desc">Randomly offsets rows horizontally, creating horizontal glitch streaks. Controls: Amount (0-100 px), Density (0-100%).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Block Shift</div>
+    <div class="card-desc">Shifts rectangular blocks horizontally, classic corrupted-data look. Controls: Amount (0-50 px), Block Height (4-64 px).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">RGB Split</div>
+    <div class="card-desc">Displaces R/G/B channels in opposite directions for chromatic aberration. Controls: Amount (0-20 px), Angle (0-360).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Interlace</div>
+    <div class="card-desc">Darkens alternating rows for a CRT/VHS feel. Controls: Opacity (0-100%), Gap (1-4 lines).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Data Corruption</div>
+    <div class="card-desc">Replaces random pixels with nearby values, simulating digital artifacts. Controls: Amount (0-100).</div>
+  </div>
+</div>
+
+<h3>Color (6 controls + Chromatic Aberration)</h3>
+<table>
+  <tr><th>Control</th><th>Range</th><th>Default</th><th>Description</th></tr>
+  <tr><td><strong>Hue Rotate</strong></td><td>0 - 360</td><td>0</td><td>Rotates all colors around the color wheel.</td></tr>
+  <tr><td><strong>Saturation</strong></td><td>0 - 200</td><td>100</td><td>Color intensity. 0 = grayscale, 100 = normal, 200 = oversaturated.</td></tr>
+  <tr><td><strong>Temperature</strong></td><td>-100 to +100</td><td>0</td><td>Warm/cool color shift. Positive = warmer, negative = cooler.</td></tr>
+  <tr><td><strong>Red / Green / Blue</strong></td><td>0 - 200</td><td>100 each</td><td>Independent per-channel intensity (channel mixer).</td></tr>
+</table>
+
+<h4>Chromatic Aberration</h4>
+<p>A radial per-channel displacement effect. Each color channel (R, G, B) is displaced outward from the image center by a configurable amount, producing a lens-like color fringing effect. The displacement is proportional to the distance from center.</p>
+<table>
+  <tr><th>Control</th><th>Range</th><th>Default</th><th>Description</th></tr>
+  <tr><td><strong>Max Displace</strong></td><td>1 - 100</td><td>20</td><td>Maximum pixel displacement at the image edges.</td></tr>
+  <tr><td><strong>Red</strong></td><td>0 - 100</td><td>10</td><td>Red channel displacement fraction (% of max).</td></tr>
+  <tr><td><strong>Green</strong></td><td>0 - 100</td><td>90</td><td>Green channel displacement fraction.</td></tr>
+  <tr><td><strong>Blue</strong></td><td>0 - 100</td><td>50</td><td>Blue channel displacement fraction.</td></tr>
+</table>
+
+<h3>Texture (3 effects)</h3>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Film Grain</div>
+    <div class="card-desc">Luminance noise overlay with configurable coarseness. Controls: Amount (0-100), Size (1-3 px).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Vignette</div>
+    <div class="card-desc">Radial edge darkening, like a camera lens effect. Controls: Amount (0-100), Size (10-90).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Scanlines</div>
+    <div class="card-desc">CRT-style horizontal line overlay. Controls: Opacity (0-100%), Spacing (1-8 px).</div>
+  </div>
+</div>
+
+<h3>Distort (3 effects)</h3>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Wave</div>
+    <div class="card-desc">Sine wave displacement for a liquid/underwater effect. Controls: Amp X/Y (0-30 px), Freq X/Y (1-20).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Pixel Scatter</div>
+    <div class="card-desc">Random pixel displacement within a radius, creating a shatter effect. Controls: Radius (0-20 px).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Barrel Distort</div>
+    <div class="card-desc">Barrel/pincushion lens distortion. Positive = barrel, negative = pincushion. Controls: Amount (-100 to +100).</div>
+  </div>
+</div>
+
+<h3>Dither Bypass</h3>
+<p>The Style section includes a toggle switch next to the section title that enables or disables all dithering. When disabled, the image passes through without any dither algorithm applied, letting you use effects on the original image directly.</p>
+</section>
+
+<!-- PALETTES -->
+<section id="palettes">
+<h2>Color Palettes</h2>
+<p>Ditter ships with 34+ built-in palettes across 4 categories. You can also create custom palettes.</p>
+
+<h3>Default</h3>
+<table>
+  <tr><th>Palette</th><th>Colors</th><th>Use Case</th></tr>
+  <tr><td>Black &amp; White</td><td>2</td><td>Classic 1-bit dithering</td></tr>
+  <tr><td>Black, Gray, White</td><td>3</td><td>Simple tonal range</td></tr>
+  <tr><td>Grayscale 4 / 8 / 16</td><td>4, 8, 16</td><td>Monochrome with more tonal steps</td></tr>
+</table>
+
+<h3>Retro</h3>
+<table>
+  <tr><th>Palette</th><th>Colors</th><th>Era</th></tr>
+  <tr><td>Game Boy / Game Boy Pocket</td><td>4</td><td>Nintendo 1989</td></tr>
+  <tr><td>CGA Palette 0 / 1</td><td>4</td><td>IBM PC 1981</td></tr>
+  <tr><td>EGA</td><td>16</td><td>IBM PC 1984</td></tr>
+  <tr><td>Commodore 64</td><td>16</td><td>Commodore 1982</td></tr>
+  <tr><td>ZX Spectrum</td><td>15</td><td>Sinclair 1982</td></tr>
+  <tr><td>NES</td><td>54</td><td>Nintendo 1983</td></tr>
+  <tr><td>SNES</td><td>16</td><td>Nintendo 1990</td></tr>
+  <tr><td>Sega Genesis</td><td>64</td><td>Sega 1988</td></tr>
+</table>
+
+<h3>Modern</h3>
+<p>Contemporary palettes: <strong>Pastel</strong>, <strong>Neon</strong>, <strong>Earth Tones</strong>, <strong>Ocean</strong>, <strong>Sunset</strong>, <strong>Forest</strong> (8 colors each).</p>
+
+<h3>Themed</h3>
+<p>Stylistic palettes: <strong>Bubblegum</strong>, <strong>Vaporwave</strong>, <strong>Cyberpunk</strong>, <strong>Retrowave</strong>, <strong>Monochrome Blue/Red/Green</strong>, <strong>Sepia</strong> (8 colors each).</p>
+</section>
+
+<!-- PRESETS -->
+<section id="presets">
+<h2>Presets</h2>
+<p>Presets save and restore all control panel settings at once. Ditter includes 21 built-in presets covering a range of classic and creative styles.</p>
+
+<div class="preset-grid">
+  <div class="preset-card"><div class="preset-name">Retro Game Boy</div><div class="preset-info">Bayer 4x4 + Game Boy palette</div></div>
+  <div class="preset-card"><div class="preset-name">Newspaper</div><div class="preset-info">Dot halftone + B&amp;W</div></div>
+  <div class="preset-card"><div class="preset-name">Classic Dither</div><div class="preset-info">Floyd-Steinberg + B&amp;W</div></div>
+  <div class="preset-card"><div class="preset-name">Vapor Wave</div><div class="preset-info">Bayer 8x8 + Vaporwave</div></div>
+  <div class="preset-card"><div class="preset-name">Cyberpunk Neon</div><div class="preset-info">Blue noise + Cyberpunk</div></div>
+  <div class="preset-card"><div class="preset-name">Mac Classic</div><div class="preset-info">Atkinson + B&amp;W</div></div>
+  <div class="preset-card"><div class="preset-name">Pixel Art</div><div class="preset-info">Pixel art + NES palette</div></div>
+  <div class="preset-card"><div class="preset-name">High Contrast</div><div class="preset-info">Simple threshold + B&amp;W</div></div>
+  <div class="preset-card"><div class="preset-name">Vintage Photo</div><div class="preset-info">Atkinson + Sepia</div></div>
+  <div class="preset-card"><div class="preset-name">Comic Book</div><div class="preset-info">Dot halftone + Grayscale 4</div></div>
+  <div class="preset-card"><div class="preset-name">CRT Scanline</div><div class="preset-info">H-lines + EGA palette</div></div>
+  <div class="preset-card"><div class="preset-name">Thermal Camera</div><div class="preset-info">Multi-level + Sunset</div></div>
+  <div class="preset-card"><div class="preset-name">Blueprint</div><div class="preset-info">Crosshatch + Blue (inverted)</div></div>
+  <div class="preset-card"><div class="preset-name">Woodcut</div><div class="preset-info">Line halftone + B&amp;W</div></div>
+  <div class="preset-card"><div class="preset-name">Matrix Rain</div><div class="preset-info">IGN + Green monochrome</div></div>
+  <div class="preset-card"><div class="preset-name">Pencil Sketch</div><div class="preset-info">Sketch + Grayscale 8</div></div>
+  <div class="preset-card"><div class="preset-name">Glitch Sort</div><div class="preset-info">Pixel sort + Grayscale 16</div></div>
+  <div class="preset-card"><div class="preset-name">Turing Pattern</div><div class="preset-info">Reaction-diffusion + B&amp;W</div></div>
+  <div class="preset-card"><div class="preset-name">Dot Stipple</div><div class="preset-info">Stipple + B&amp;W</div></div>
+  <div class="preset-card"><div class="preset-name">Flow Art</div><div class="preset-info">Flow field + B&amp;W</div></div>
+  <div class="preset-card"><div class="preset-name">ASCII Art</div><div class="preset-info">ASCII + B&amp;W</div></div>
+</div>
+
+<p>You can also <strong>Save Preset</strong> to create your own, and <strong>Reset All</strong> to return to defaults.</p>
+</section>
+
+<!-- CONTROLS -->
+<section id="controls">
+<h2>Controls Reference</h2>
+<p>All adjustable parameters in the control panel:</p>
+
+<table>
+  <tr><th>Control</th><th>Range</th><th>Default</th><th>Description</th></tr>
+  <tr><td><strong>Scale</strong></td><td>1 - 8</td><td>1</td><td>Downscale factor. Higher values create larger, blockier pixels (pixelation effect).</td></tr>
+  <tr><td><strong>Line Scale</strong></td><td>0.1 - 3.0</td><td>1</td><td>Scales pattern/halftone cell sizes and line spacing. Higher = coarser patterns.</td></tr>
+  <tr><td><strong>Smoothing</strong></td><td>0 - 100</td><td>0</td><td>Pre-dither blur. Reduces noise in the source, producing cleaner dithering.</td></tr>
+  <tr><td><strong>Blend</strong></td><td>0 - 100</td><td>100</td><td>Mix between original and dithered result. 0 = original, 100 = fully dithered.</td></tr>
+  <tr><td><strong>Contrast</strong></td><td>0 - 100</td><td>50</td><td>Pre-dither contrast adjustment. Uses a tangent curve for smooth control.</td></tr>
+  <tr><td><strong>Midtones</strong></td><td>0 - 100</td><td>50</td><td>Gamma adjustment for midtone brightness. Below 50 = darker, above 50 = lighter.</td></tr>
+  <tr><td><strong>Highlights</strong></td><td>0 - 100</td><td>50</td><td>Boosts or dims bright areas specifically.</td></tr>
+  <tr><td><strong>Threshold</strong></td><td>0 - 100</td><td>50</td><td>Algorithm-specific threshold. Controls cutoff for threshold algorithms, band width for pixel sort, etc.</td></tr>
+  <tr><td><strong>Blur</strong></td><td>0 - 10</td><td>0</td><td>Pre-dither box blur (3-pass separable, O(n) regardless of radius).</td></tr>
+  <tr><td><strong>Depth</strong></td><td>0 - 10</td><td>0</td><td>Edge enhancement via unsharp mask. Sharpens detail before dithering.</td></tr>
+  <tr><td><strong>Invert</strong></td><td>on/off</td><td>off</td><td>Inverts colors before dithering.</td></tr>
+</table>
+</section>
+
+<!-- STUDIO -->
+<section id="studio">
+<h2>Dither Studio</h2>
+<p>The Studio is an advanced editor for creating custom dithering patterns. Open it via the <strong>Studio</strong> button in the header.</p>
+
+<div class="screenshot">
+  <img src="screenshots/07-studio.png" alt="Dither Studio">
+  <div class="screenshot-caption">The Dither Studio with Classic tab showing the error diffusion matrix editor and threshold map.</div>
+</div>
+
+<h3>Classic Tab</h3>
+<p>Edit custom error diffusion matrices and threshold maps directly. Set matrix size, adjust individual weights, and see the divisor update automatically. Changes preview in real-time on the right.</p>
+
+<h3>Paint Tab</h3>
+<p>Draw threshold patterns freehand on a pixel grid (8x8, 16x16, or 32x32). Select a brush value (0-255) and paint directly. Tools: Clear, Invert, Random, Bayer Fill.</p>
+
+<h3>Shape Lab</h3>
+<p>Generate threshold patterns from mathematical shapes: circle, diamond, square, cross, star, ring, hexagon. Adjust cell size, rotation angle, and elongation. A live preview shows the distance field.</p>
+
+<h3>Wave Mixer</h3>
+<p>Combine up to 8 wave layers to create complex threshold patterns. Each layer has: wave type (sine/triangle/sawtooth/square), direction, frequency, amplitude, phase, and blend mode (add/multiply/min/max).</p>
+</section>
+
+<!-- SHORTCUTS -->
+<section id="shortcuts">
+<h2>Keyboard Shortcuts</h2>
+<div class="shortcut-row"><span>Open file</span><span><kbd>Ctrl</kbd> + <kbd>O</kbd></span></div>
+<div class="shortcut-row"><span>Export</span><span><kbd>Ctrl</kbd> + <kbd>E</kbd></span></div>
+<div class="shortcut-row"><span>Zoom in</span><span><kbd>+</kbd> or <kbd>=</kbd></span></div>
+<div class="shortcut-row"><span>Zoom out</span><span><kbd>-</kbd></span></div>
+<div class="shortcut-row"><span>Reset zoom (1:1)</span><span><kbd>0</kbd></span></div>
+<div class="shortcut-row"><span>Zoom to fit</span><span><kbd>F</kbd></span></div>
+<div class="shortcut-row"><span>Close modal</span><span><kbd>Esc</kbd></span></div>
+
+<h3>Video Mode</h3>
+<p>These shortcuts are active when a video is loaded:</p>
+<div class="shortcut-row"><span>Previous frame</span><span><kbd>&larr;</kbd></span></div>
+<div class="shortcut-row"><span>Next frame</span><span><kbd>&rarr;</kbd></span></div>
+<div class="shortcut-row"><span>Play / Pause</span><span><kbd>Space</kbd></span></div>
+<div class="shortcut-row"><span>First frame</span><span><kbd>Home</kbd></span></div>
+<div class="shortcut-row"><span>Last frame</span><span><kbd>End</kbd></span></div>
+
+<p style="margin-top: 12px;">Pan the canvas by clicking and dragging. Zoom with the scroll wheel (zooms toward cursor).</p>
+</section>
+
+<!-- PERFORMANCE -->
+<section id="performance">
+<h2>Performance</h2>
+<p>Ditter uses several strategies to keep processing fast:</p>
+
+<h3>GPU Acceleration</h3>
+<p>~28 algorithms run on the GPU via WebGL2 fragment shaders. This includes all ordered, halftone, noise, pattern, and basic threshold algorithms. Processing is essentially instant regardless of image size.</p>
+
+<h3>Web Worker</h3>
+<p>All processing runs in a dedicated Web Worker, keeping the UI responsive. Results are transferred back via zero-copy buffer transfer.</p>
+
+<h3>Optimized Algorithms</h3>
+<p>CPU algorithms use: k-d tree palette lookups (O(log n) vs O(n) linear search), pre-computed LUTs for adjustments, separable box blur (O(n) regardless of radius), and spatial grid indexing for Voronoi-based algorithms.</p>
+
+<h3>Reaction-Diffusion GPU Pipeline</h3>
+<p>The reaction-diffusion algorithm uses a special multi-pass GPU pipeline with ping-pong framebuffers. The Gray-Scott simulation runs entirely on the GPU using RGBA16F float textures, making it 50-100x faster than CPU.</p>
+
+<h4>Speed Reference</h4>
+<table>
+  <tr><th>Category</th><th>Speed</th><th>Notes</th></tr>
+  <tr><td>GPU algorithms</td><td><span class="tag tag-fast">Instant</span></td><td>< 5ms on any image size</td></tr>
+  <tr><td>Error diffusion</td><td><span class="tag tag-fast">Fast</span></td><td>~20-50ms for 1080p</td></tr>
+  <tr><td>Artistic (most)</td><td><span class="tag tag-fast">Fast</span></td><td>~30-80ms</td></tr>
+  <tr><td>Stippling / Flow</td><td><span class="tag tag-moderate">Moderate</span></td><td>~200-500ms</td></tr>
+  <tr><td>DLA Clustering</td><td><span class="tag tag-slow">Slow</span></td><td>~1-3s depending on image size</td></tr>
+</table>
+
+<p><strong>Note:</strong> Running via <code>file://</code> protocol disables Web Workers and WebGL in workers. Use a local HTTP server (<code>python3 -m http.server 8000</code>) or the Tauri desktop app for full performance.</p>
+</section>
+
+<!-- EXPORT -->
+<section id="export">
+<h2>Export</h2>
+<p>Click <strong>Export</strong> (or <kbd>Ctrl</kbd>+<kbd>E</kbd>) to open the export dialog.</p>
+
+<div class="screenshot">
+  <img src="screenshots/08-export.png" alt="Export dialog">
+  <div class="screenshot-caption">The export dialog with format, quality, and scale options.</div>
+</div>
+
+<h3>Options</h3>
+<table>
+  <tr><th>Setting</th><th>Description</th></tr>
+  <tr><td><strong>Format</strong></td><td>PNG (lossless, default), JPEG, WebP, or SVG (Vector)</td></tr>
+  <tr><td><strong>Quality</strong></td><td>1-100, for JPEG/WebP only (hidden for PNG and SVG)</td></tr>
+  <tr><td><strong>Scale</strong></td><td>1x, 2x, 4x output resolution multiplier (hidden for SVG)</td></tr>
+  <tr><td><strong>Filename</strong></td><td>Custom filename (defaults to "ditter-export")</td></tr>
+</table>
+
+<h3>SVG Export</h3>
+<p>SVG export converts the dithered result into a scalable vector file. The exporter scans the image to detect the effective cell size (the pixel block size used by the dither algorithm), then represents each cell as an SVG <code>&lt;rect&gt;</code>. Cells are grouped by color for efficiency, and consecutive cells on the same row are merged into wider rectangles to reduce file size. The most common color is used as a background fill.</p>
+<p>When SVG is selected, the dialog shows an info line with the detected cell size and total cell count. For large images (over 100,000 cells), a warning is displayed since the resulting SVG file may be very large. SVG is most effective with low-resolution dithered images or high Scale values where each visible "pixel" covers multiple actual pixels.</p>
+
+<p>On the Tauri desktop app, export opens a native Save As dialog so you can choose the destination folder. In the browser, files are downloaded directly.</p>
+
+<p>For video export, see the <a href="#video">Video</a> section below.</p>
+</section>
+
+<!-- THEMES -->
+<section>
+<h2>Themes</h2>
+<p>Toggle between dark and light mode with the theme button (Lt/Dk) in the top-right corner. Your preference is saved to localStorage.</p>
+
+<div class="screenshot">
+  <img src="screenshots/09-light-theme.png" alt="Light theme">
+  <div class="screenshot-caption">Ditter in light mode.</div>
+</div>
+</section>
+
+<!-- VIDEO -->
+<section id="video">
+<h2>Video</h2>
+<p>Ditter can load video files and apply dithering frame-by-frame using the same processing pipeline as images. The result can be rendered to a downloadable WebM file.</p>
+
+<h3>Loading a Video</h3>
+<p>Drag and drop an MP4, WebM, or QuickTime file onto the canvas (or use the file picker). Ditter extracts the video metadata, calculates the total frame count, and builds a filmstrip of thumbnails below the canvas. Frame 0 is displayed and dithered automatically.</p>
+
+<h3>Filmstrip</h3>
+<p>The filmstrip appears below the canvas when a video is loaded. It includes:</p>
+<table>
+  <tr><th>Control</th><th>Description</th></tr>
+  <tr><td><strong>Prev / Next</strong></td><td>Step one frame backward or forward</td></tr>
+  <tr><td><strong>Play / Pause</strong></td><td>Preview playback at ~8fps (dithered in real-time)</td></tr>
+  <tr><td><strong>Frame counter</strong></td><td>Shows current frame number and total</td></tr>
+  <tr><td><strong>Scrubber</strong></td><td>Drag to seek to any frame</td></tr>
+  <tr><td><strong>Time display</strong></td><td>Current time position in the video</td></tr>
+  <tr><td><strong>Thumbnail track</strong></td><td>Click any thumbnail to jump to that frame. For long videos (300+ frames), thumbnails are sampled at 1 per second.</td></tr>
+</table>
+
+<h3>Processing</h3>
+<p>Every dithering control (algorithm, palette, scale, contrast, etc.) works exactly as with images. When you change a setting, the current frame is re-processed and the processed frame cache is cleared so that subsequent frames use the new settings.</p>
+<p>Ditter maintains an LRU cache of up to 50 processed frames. Previously visited frames with unchanged settings display instantly from the cache.</p>
+
+<h3>Rendering</h3>
+<p>Click the <strong>Render</strong> button in the header (visible only in video mode) to open the render dialog. Options:</p>
+<table>
+  <tr><th>Setting</th><th>Description</th></tr>
+  <tr><td><strong>FPS</strong></td><td>Output frame rate: 12, 15, 24 (default), or 30</td></tr>
+  <tr><td><strong>Quality</strong></td><td>Bitrate in Mbps (1, 20, default 8)</td></tr>
+  <tr><td><strong>Filename</strong></td><td>Output filename (defaults to "ditter-video")</td></tr>
+</table>
+<p>Rendering processes every frame sequentially through a dedicated Web Worker, draws each result to a canvas, and captures the stream using MediaRecorder. The output format is WebM (VP9 preferred, VP8 fallback). A progress bar shows completion percentage, and rendering can be cancelled at any time.</p>
+<p>On the Tauri desktop app, a native Save As dialog lets you choose where to save the WebM file. In the browser, the file downloads automatically.</p>
+
+<h3>Memory</h3>
+<p>Raw video frames are never stored in memory. They are extracted on-demand from the video element via seeking. The processed frame cache holds up to 50 frames (roughly 400MB at 1080p in the worst case). Thumbnails are lightweight (~40KB each). During rendering, frames flow sequentially through the worker and are not cached.</p>
+</section>
+
+<!-- PACKAGING -->
+<section id="packaging">
+<h2>Packaging and Deployment</h2>
+<p>Ditter is built with <a href="https://v2.tauri.app">Tauri v2</a>, which compiles your web frontend into a native desktop app with a small Rust backend. Here is what you need to know to package and distribute the app.</p>
+
+<h3>Prerequisites</h3>
+<table>
+  <tr><th>Requirement</th><th>Details</th></tr>
+  <tr><td><strong>Rust</strong></td><td>Install via <code>rustup</code>. The Tauri CLI uses Cargo internally.</td></tr>
+  <tr><td><strong>Node.js</strong></td><td>For any frontend build tooling (Ditter uses a simple HTTP server for dev).</td></tr>
+  <tr><td><strong>Tauri CLI</strong></td><td><code>cargo install tauri-cli --version "^2"</code></td></tr>
+  <tr><td><strong>Platform tools</strong></td><td>macOS: Xcode Command Line Tools. Windows: Visual Studio Build Tools + WebView2. Linux: see <a href="https://v2.tauri.app/start/prerequisites/">Tauri prerequisites</a>.</td></tr>
+</table>
+
+<h3>Development</h3>
+<p>Run <code>cargo tauri dev</code> from the project root. This starts the dev HTTP server and compiles the Rust backend in debug mode with hot-reload on file changes.</p>
+
+<h3>Building for Release</h3>
+<p>Run <code>cargo tauri build</code> to create a production build. This produces platform-specific installers:</p>
+<table>
+  <tr><th>Platform</th><th>Output</th><th>Location</th></tr>
+  <tr><td>macOS</td><td><code>.dmg</code> and <code>.app</code> bundle</td><td><code>src-tauri/target/release/bundle/dmg/</code></td></tr>
+  <tr><td>Windows</td><td><code>.msi</code> and <code>.exe</code> (NSIS)</td><td><code>src-tauri/target/release/bundle/nsis/</code></td></tr>
+  <tr><td>Linux</td><td><code>.deb</code>, <code>.AppImage</code>, <code>.rpm</code></td><td><code>src-tauri/target/release/bundle/</code></td></tr>
+</table>
+
+<h3>Code Signing</h3>
+<p>To distribute outside of development, you should sign the app:</p>
+<p><strong>macOS:</strong> Requires an Apple Developer account ($99/year). Set the <code>APPLE_SIGNING_IDENTITY</code> environment variable or configure signing in <code>tauri.conf.json</code> under <code>bundle > macOS</code>. For notarization, also set <code>APPLE_ID</code>, <code>APPLE_PASSWORD</code> (app-specific), and <code>APPLE_TEAM_ID</code>.</p>
+<p><strong>Windows:</strong> Use a code signing certificate (EV or OV). Set <code>TAURI_SIGNING_PRIVATE_KEY</code> and related env vars. Tauri supports SignTool and Azure Trusted Signing.</p>
+<p><strong>Linux:</strong> No signing required for AppImage/deb distribution, though GPG signing is recommended for package repositories.</p>
+
+<h3>Cross-Platform Builds</h3>
+<p>Tauri builds natively, so you need each target OS to produce its installer. For CI/CD, use GitHub Actions with a matrix strategy across macOS, Windows, and Ubuntu runners. The <a href="https://github.com/tauri-apps/tauri-action">tauri-action</a> GitHub Action automates this and can create GitHub Releases with all installers attached.</p>
+
+<h3>Updater</h3>
+<p>Tauri v2 includes a built-in updater plugin (<code>tauri-plugin-updater</code>) that checks a remote JSON endpoint for new versions and downloads updates automatically. Configure the update URL in <code>tauri.conf.json</code> and host the update manifest alongside your release assets.</p>
+</section>
+
+<p style="margin-top: 60px; color: var(--text3); font-size: 11px; text-align: center; border-top: 1px solid var(--border); padding-top: 24px;">Ditter, a real-time dithering tool.</p>
+
+</main>
+
+<script>
+  // Theme toggle
+  const toggle = document.getElementById('theme-toggle');
+  const storedTheme = localStorage.getItem('ditter-docs-theme');
+  if (storedTheme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    toggle.textContent = 'Dark';
+  }
+  toggle.addEventListener('click', () => {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    if (isLight) {
+      document.documentElement.removeAttribute('data-theme');
+      toggle.textContent = 'Light';
+      localStorage.setItem('ditter-docs-theme', 'dark');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      toggle.textContent = 'Dark';
+      localStorage.setItem('ditter-docs-theme', 'light');
+    }
+  });
+
+  // Zoom control
+  const zoomBtn = document.getElementById('zoom-btn');
+  const zoomLevels = [100, 125, 150, 175, 200];
+  let zoomIndex = zoomLevels.indexOf(
+    parseInt(localStorage.getItem('ditter-docs-zoom')) || 150
+  );
+  if (zoomIndex === -1) zoomIndex = 2;
+
+  function applyZoom() {
+    const level = zoomLevels[zoomIndex];
+    document.querySelector('main').style.zoom = level / 100;
+    zoomBtn.textContent = level + '%';
+    localStorage.setItem('ditter-docs-zoom', level);
+  }
+  applyZoom();
+
+  zoomBtn.addEventListener('click', () => {
+    zoomIndex = (zoomIndex + 1) % zoomLevels.length;
+    applyZoom();
+  });
+</script>
+</body>
+</html>
