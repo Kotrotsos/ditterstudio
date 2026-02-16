@@ -343,6 +343,8 @@
   <a href="#artistic">Artistic</a>
   <a href="#threshold">Threshold</a>
   <a href="#creative">Creative / Experimental</a>
+  <div class="nav-section">Post-Processing</div>
+  <a href="#effects">Effects Layer</a>
   <div class="nav-section">Reference</div>
   <a href="#palettes">Color Palettes</a>
   <a href="#presets">Presets</a>
@@ -371,8 +373,8 @@
 <section id="overview">
 <h2>How It Works</h2>
 <p>The processing pipeline runs in this order for every parameter change:</p>
-<p><strong>1. Adjustments</strong> (contrast, midtones, highlights, invert) &rarr; <strong>2. Blur / Smoothing / Depth</strong> &rarr; <strong>3. Scale</strong> (downscale for pixelation) &rarr; <strong>4. Dither Algorithm</strong> &rarr; <strong>5. Upscale</strong> (back to original size) &rarr; <strong>6. Blend</strong> (mix with original)</p>
-<p>Processing runs in a Web Worker off the main thread. If WebGL2 is available, per-pixel-independent algorithms run on the GPU. Sequential algorithms (error diffusion, creative) run on the CPU with optimized routines.</p>
+<p><strong>1. Adjustments</strong> (contrast, midtones, highlights, invert) &rarr; <strong>2. Blur / Smoothing / Depth</strong> &rarr; <strong>3. Scale</strong> (downscale for pixelation) &rarr; <strong>4. Dither Algorithm</strong> &rarr; <strong>5. Upscale</strong> (back to original size) &rarr; <strong>6. Blend</strong> (mix with original) &rarr; <strong>7. Effects Layer</strong> (post-processing)</p>
+<p>Steps 1-6 run in a Web Worker off the main thread. If WebGL2 is available, per-pixel-independent algorithms run on the GPU. Sequential algorithms (error diffusion, creative) run on the CPU with optimized routines. Step 7 (Effects Layer) runs on the main thread after the dithered result is returned, and is skipped entirely when no effects are active. When only effects change, the dither step is not re-run, making adjustments instant.</p>
 </section>
 
 <!-- GETTING STARTED -->
@@ -706,6 +708,95 @@
 </div>
 </section>
 
+<!-- EFFECTS LAYER -->
+<section id="effects">
+<h2>Effects Layer</h2>
+<p>The Effects Layer is a post-processing pipeline that runs after dithering. It provides 16 effects across 4 categories that can be combined to create glitch, color, texture, and distortion effects on your dithered output. Open it by clicking <strong>Effects Layer</strong> in the control panel, which slides open a secondary sidebar.</p>
+
+<p>Effects are applied on the main thread to the cached dithered result. This means changing effect parameters is instant, no re-dithering required. The processing order is: Color &rarr; Chromatic Aberration &rarr; Distort &rarr; Glitch &rarr; Texture.</p>
+
+<h3>Controls</h3>
+<p>The Effects panel has a <strong>master toggle</strong> (enable/disable all effects at once) and a <strong>Reset</strong> button that returns all parameters to their defaults. Each category section is collapsible.</p>
+
+<h3>Glitch (5 effects)</h3>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Scanline Shift</div>
+    <div class="card-desc">Randomly offsets rows horizontally, creating horizontal glitch streaks. Controls: Amount (0-100 px), Density (0-100%).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Block Shift</div>
+    <div class="card-desc">Shifts rectangular blocks horizontally, classic corrupted-data look. Controls: Amount (0-50 px), Block Height (4-64 px).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">RGB Split</div>
+    <div class="card-desc">Displaces R/G/B channels in opposite directions for chromatic aberration. Controls: Amount (0-20 px), Angle (0-360).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Interlace</div>
+    <div class="card-desc">Darkens alternating rows for a CRT/VHS feel. Controls: Opacity (0-100%), Gap (1-4 lines).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Data Corruption</div>
+    <div class="card-desc">Replaces random pixels with nearby values, simulating digital artifacts. Controls: Amount (0-100).</div>
+  </div>
+</div>
+
+<h3>Color (6 controls + Chromatic Aberration)</h3>
+<table>
+  <tr><th>Control</th><th>Range</th><th>Default</th><th>Description</th></tr>
+  <tr><td><strong>Hue Rotate</strong></td><td>0 - 360</td><td>0</td><td>Rotates all colors around the color wheel.</td></tr>
+  <tr><td><strong>Saturation</strong></td><td>0 - 200</td><td>100</td><td>Color intensity. 0 = grayscale, 100 = normal, 200 = oversaturated.</td></tr>
+  <tr><td><strong>Temperature</strong></td><td>-100 to +100</td><td>0</td><td>Warm/cool color shift. Positive = warmer, negative = cooler.</td></tr>
+  <tr><td><strong>Red / Green / Blue</strong></td><td>0 - 200</td><td>100 each</td><td>Independent per-channel intensity (channel mixer).</td></tr>
+</table>
+
+<h4>Chromatic Aberration</h4>
+<p>A radial per-channel displacement effect. Each color channel (R, G, B) is displaced outward from the image center by a configurable amount, producing a lens-like color fringing effect. The displacement is proportional to the distance from center.</p>
+<table>
+  <tr><th>Control</th><th>Range</th><th>Default</th><th>Description</th></tr>
+  <tr><td><strong>Max Displace</strong></td><td>1 - 100</td><td>20</td><td>Maximum pixel displacement at the image edges.</td></tr>
+  <tr><td><strong>Red</strong></td><td>0 - 100</td><td>10</td><td>Red channel displacement fraction (% of max).</td></tr>
+  <tr><td><strong>Green</strong></td><td>0 - 100</td><td>90</td><td>Green channel displacement fraction.</td></tr>
+  <tr><td><strong>Blue</strong></td><td>0 - 100</td><td>50</td><td>Blue channel displacement fraction.</td></tr>
+</table>
+
+<h3>Texture (3 effects)</h3>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Film Grain</div>
+    <div class="card-desc">Luminance noise overlay with configurable coarseness. Controls: Amount (0-100), Size (1-3 px).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Vignette</div>
+    <div class="card-desc">Radial edge darkening, like a camera lens effect. Controls: Amount (0-100), Size (10-90).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Scanlines</div>
+    <div class="card-desc">CRT-style horizontal line overlay. Controls: Opacity (0-100%), Spacing (1-8 px).</div>
+  </div>
+</div>
+
+<h3>Distort (3 effects)</h3>
+<div class="card-grid">
+  <div class="card">
+    <div class="card-title">Wave</div>
+    <div class="card-desc">Sine wave displacement for a liquid/underwater effect. Controls: Amp X/Y (0-30 px), Freq X/Y (1-20).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Pixel Scatter</div>
+    <div class="card-desc">Random pixel displacement within a radius, creating a shatter effect. Controls: Radius (0-20 px).</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Barrel Distort</div>
+    <div class="card-desc">Barrel/pincushion lens distortion. Positive = barrel, negative = pincushion. Controls: Amount (-100 to +100).</div>
+  </div>
+</div>
+
+<h3>Dither Bypass</h3>
+<p>The Style section includes a toggle switch next to the section title that enables or disables all dithering. When disabled, the image passes through without any dither algorithm applied, letting you use effects on the original image directly.</p>
+</section>
+
 <!-- PALETTES -->
 <section id="palettes">
 <h2>Color Palettes</h2>
@@ -880,11 +971,15 @@
 <h3>Options</h3>
 <table>
   <tr><th>Setting</th><th>Description</th></tr>
-  <tr><td><strong>Format</strong></td><td>PNG (lossless, default), JPEG, or WebP</td></tr>
-  <tr><td><strong>Quality</strong></td><td>1-100, for JPEG/WebP only (hidden for PNG)</td></tr>
-  <tr><td><strong>Scale</strong></td><td>1x, 2x, 3x, 4x output resolution multiplier</td></tr>
+  <tr><td><strong>Format</strong></td><td>PNG (lossless, default), JPEG, WebP, or SVG (Vector)</td></tr>
+  <tr><td><strong>Quality</strong></td><td>1-100, for JPEG/WebP only (hidden for PNG and SVG)</td></tr>
+  <tr><td><strong>Scale</strong></td><td>1x, 2x, 4x output resolution multiplier (hidden for SVG)</td></tr>
   <tr><td><strong>Filename</strong></td><td>Custom filename (defaults to "ditter-export")</td></tr>
 </table>
+
+<h3>SVG Export</h3>
+<p>SVG export converts the dithered result into a scalable vector file. The exporter scans the image to detect the effective cell size (the pixel block size used by the dither algorithm), then represents each cell as an SVG <code>&lt;rect&gt;</code>. Cells are grouped by color for efficiency, and consecutive cells on the same row are merged into wider rectangles to reduce file size. The most common color is used as a background fill.</p>
+<p>When SVG is selected, the dialog shows an info line with the detected cell size and total cell count. For large images (over 100,000 cells), a warning is displayed since the resulting SVG file may be very large. SVG is most effective with low-resolution dithered images or high Scale values where each visible "pixel" covers multiple actual pixels.</p>
 
 <p>On the Tauri desktop app, export opens a native Save As dialog so you can choose the destination folder. In the browser, files are downloaded directly.</p>
 
