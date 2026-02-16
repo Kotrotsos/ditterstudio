@@ -4335,6 +4335,19 @@ const DitherEngine = (() => {
           return { data, width, height };
         }
       }
+    },
+
+    // -----------------------------------------
+    // NONE (Passthrough)
+    // -----------------------------------------
+    'none': {
+      'passthrough': {
+        name: 'No Dithering',
+        description: 'Passes through the image without dithering. Useful for applying only adjustments or post-processing effects.',
+        fn: function(imageData, palette, options = {}) {
+          return copyImageData(imageData);
+        }
+      }
     }
   };
 
@@ -4365,7 +4378,8 @@ const DitherEngine = (() => {
       'pattern': 'Pattern',
       'artistic': 'Artistic',
       'threshold': 'Threshold',
-      'creative': 'Creative / Experimental'
+      'creative': 'Creative / Experimental',
+      'none': 'None (Passthrough)'
     };
     return names[categoryId] || categoryId;
   }
