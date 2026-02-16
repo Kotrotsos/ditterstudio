@@ -13,8 +13,14 @@ const DitterCanvas = (() => {
   let sourceImage = null; // HTMLImageElement or ImageBitmap
   let sourceImageData = null; // { data: Uint8ClampedArray, width, height }
 
-  // Dithered result
+  // Dithered result (before effects)
+  let ditheredImageData = null; // { data: Uint8ClampedArray, width, height }
+
+  // Final result (after effects)
   let resultImageData = null; // { data: Uint8ClampedArray, width, height }
+
+  // Current effects parameters
+  let currentEffectParams = null;
 
   // Zoom and pan state
   let zoom = 1;
@@ -90,12 +96,12 @@ const DitterCanvas = (() => {
 
     if (type === 'result') {
       // Reconstruct Uint8ClampedArray from transferred ArrayBuffer
-      resultImageData = {
+      ditheredImageData = {
         data: new Uint8ClampedArray(data.data),
         width: data.width,
         height: data.height
       };
-      render();
+      applyEffectsAndRender();
       isProcessing = false;
       if (onProcessingEnd) onProcessingEnd();
 
@@ -260,6 +266,7 @@ const DitterCanvas = (() => {
           height: img.height
         };
 
+        ditheredImageData = null;
         resultImageData = null;
         URL.revokeObjectURL(url);
 
@@ -293,6 +300,7 @@ const DitterCanvas = (() => {
    */
   function loadImageData(data, width, height) {
     sourceImageData = { data: new Uint8ClampedArray(data), width, height };
+    ditheredImageData = null;
     resultImageData = null;
     zoomFit();
     render();
@@ -333,8 +341,8 @@ const DitterCanvas = (() => {
     } else {
       // Fallback: process on main thread
       try {
-        resultImageData = DitherEngine.process(sourceImageData, params);
-        render();
+        ditheredImageData = DitherEngine.process(sourceImageData, params);
+        applyEffectsAndRender();
       } catch (e) {
         console.error('Dither processing error:', e);
       }
@@ -381,6 +389,7 @@ const DitterCanvas = (() => {
    */
   function updateSourceData(data, width, height) {
     sourceImageData = { data: new Uint8ClampedArray(data), width, height };
+    ditheredImageData = null;
     resultImageData = null;
   }
 
@@ -409,6 +418,7 @@ const DitterCanvas = (() => {
       }
     }
     sourceImageData = { data: flipped, width, height };
+    ditheredImageData = null;
     resultImageData = null;
     render();
   }
@@ -424,6 +434,7 @@ const DitterCanvas = (() => {
       flipped.set(data.subarray(srcOff, srcOff + rowSize), dstOff);
     }
     sourceImageData = { data: flipped, width, height };
+    ditheredImageData = null;
     resultImageData = null;
     render();
   }
@@ -443,6 +454,7 @@ const DitterCanvas = (() => {
       }
     }
     sourceImageData = { data: rotated, width: height, height: width };
+    ditheredImageData = null;
     resultImageData = null;
     zoomFit();
     render();
@@ -496,9 +508,39 @@ const DitterCanvas = (() => {
   }
 
   /**
+   * Apply effects to the dithered result and render.
+   */
+  function applyEffectsAndRender() {
+    if (!ditheredImageData) {
+      resultImageData = null;
+      render();
+      return;
+    }
+
+    if (currentEffectParams && DitterEffects.hasActiveEffects(currentEffectParams)) {
+      resultImageData = DitterEffects.apply(ditheredImageData, currentEffectParams);
+    } else {
+      resultImageData = ditheredImageData;
+    }
+    render();
+  }
+
+  /**
+   * Set effect parameters and reapply (fast, no re-dither).
+   * @param {object} params - Effect parameters
+   */
+  function setEffectParams(params) {
+    currentEffectParams = params;
+    if (ditheredImageData) {
+      applyEffectsAndRender();
+    }
+  }
+
+  /**
    * Reset to the original unprocessed source image.
    */
   function resetToOriginal() {
+    ditheredImageData = null;
     resultImageData = null;
     render();
   }
@@ -533,6 +575,7 @@ const DitterCanvas = (() => {
     getZoom,
     updateThemeColor,
     resetToOriginal,
+    setEffectParams,
     flipHorizontal,
     flipVertical,
     rotateCW,

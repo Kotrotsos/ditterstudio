@@ -76,6 +76,237 @@
         </div>
       </section>
 
+      <!-- Effects Panel -->
+      <aside id="effects-panel" class="collapsed">
+        <div class="effects-header">
+          <span class="effects-header-title">Effects Layer</span>
+          <div class="effects-header-controls">
+            <button id="btn-effects-reset" class="btn btn-secondary btn-small">Reset</button>
+            <input type="checkbox" id="effects-master-toggle" class="effects-master-toggle" title="Enable effects">
+          </div>
+        </div>
+        <div class="effects-scroll">
+
+          <!-- Glitch -->
+          <div class="effects-section" data-section="glitch">
+            <div class="effects-section-header">
+              <span class="effects-section-label">Glitch</span>
+              <span class="effects-section-chevron">v</span>
+            </div>
+            <div class="effects-section-body">
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-scanline-shift-on"> Scanline Shift</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-scanline-shift-amount">Amount <span id="val-fx-scanline-shift-amount" class="slider-value">10</span></label>
+                  <input type="range" id="fx-scanline-shift-amount" class="slider" min="0" max="100" value="10" step="1">
+                </div>
+                <div class="control-group">
+                  <label for="fx-scanline-shift-density">Density <span id="val-fx-scanline-shift-density" class="slider-value">50</span></label>
+                  <input type="range" id="fx-scanline-shift-density" class="slider" min="0" max="100" value="50" step="1">
+                </div>
+              </div>
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-block-shift-on"> Block Shift</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-block-shift-amount">Amount <span id="val-fx-block-shift-amount" class="slider-value">10</span></label>
+                  <input type="range" id="fx-block-shift-amount" class="slider" min="0" max="50" value="10" step="1">
+                </div>
+                <div class="control-group">
+                  <label for="fx-block-shift-height">Block Height <span id="val-fx-block-shift-height" class="slider-value">16</span></label>
+                  <input type="range" id="fx-block-shift-height" class="slider" min="4" max="64" value="16" step="1">
+                </div>
+              </div>
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-rgb-split-on"> RGB Split</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-rgb-split-amount">Amount <span id="val-fx-rgb-split-amount" class="slider-value">4</span></label>
+                  <input type="range" id="fx-rgb-split-amount" class="slider" min="0" max="20" value="4" step="1">
+                </div>
+                <div class="control-group">
+                  <label for="fx-rgb-split-angle">Angle <span id="val-fx-rgb-split-angle" class="slider-value">0</span></label>
+                  <input type="range" id="fx-rgb-split-angle" class="slider" min="0" max="360" value="0" step="1">
+                </div>
+              </div>
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-interlace-on"> Interlace</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-interlace-opacity">Opacity <span id="val-fx-interlace-opacity" class="slider-value">50</span></label>
+                  <input type="range" id="fx-interlace-opacity" class="slider" min="0" max="100" value="50" step="1">
+                </div>
+                <div class="control-group">
+                  <label for="fx-interlace-gap">Gap <span id="val-fx-interlace-gap" class="slider-value">2</span></label>
+                  <input type="range" id="fx-interlace-gap" class="slider" min="1" max="4" value="2" step="1">
+                </div>
+              </div>
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-corruption-on"> Data Corruption</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-corruption-amount">Amount <span id="val-fx-corruption-amount" class="slider-value">20</span></label>
+                  <input type="range" id="fx-corruption-amount" class="slider" min="0" max="100" value="20" step="1">
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Color -->
+          <div class="effects-section" data-section="color">
+            <div class="effects-section-header">
+              <span class="effects-section-label">Color</span>
+              <span class="effects-section-chevron">v</span>
+            </div>
+            <div class="effects-section-body">
+              <div class="control-group">
+                <label for="fx-hue-rotate">Hue Rotate <span id="val-fx-hue-rotate" class="slider-value">0</span></label>
+                <input type="range" id="fx-hue-rotate" class="slider" min="0" max="360" value="0" step="1">
+              </div>
+              <div class="control-group">
+                <label for="fx-saturation">Saturation <span id="val-fx-saturation" class="slider-value">100</span></label>
+                <input type="range" id="fx-saturation" class="slider" min="0" max="200" value="100" step="1">
+              </div>
+              <div class="control-group">
+                <label for="fx-temperature">Temperature <span id="val-fx-temperature" class="slider-value">0</span></label>
+                <input type="range" id="fx-temperature" class="slider" min="-100" max="100" value="0" step="1">
+              </div>
+              <div class="control-group">
+                <label for="fx-channel-r">Red <span id="val-fx-channel-r" class="slider-value">100</span></label>
+                <input type="range" id="fx-channel-r" class="slider" min="0" max="200" value="100" step="1">
+              </div>
+              <div class="control-group">
+                <label for="fx-channel-g">Green <span id="val-fx-channel-g" class="slider-value">100</span></label>
+                <input type="range" id="fx-channel-g" class="slider" min="0" max="200" value="100" step="1">
+              </div>
+              <div class="control-group">
+                <label for="fx-channel-b">Blue <span id="val-fx-channel-b" class="slider-value">100</span></label>
+                <input type="range" id="fx-channel-b" class="slider" min="0" max="200" value="100" step="1">
+              </div>
+            </div>
+          </div>
+
+          <!-- Texture -->
+          <div class="effects-section" data-section="texture">
+            <div class="effects-section-header">
+              <span class="effects-section-label">Texture</span>
+              <span class="effects-section-chevron">v</span>
+            </div>
+            <div class="effects-section-body">
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-grain-on"> Film Grain</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-grain-amount">Amount <span id="val-fx-grain-amount" class="slider-value">30</span></label>
+                  <input type="range" id="fx-grain-amount" class="slider" min="0" max="100" value="30" step="1">
+                </div>
+                <div class="control-group">
+                  <label for="fx-grain-size">Size <span id="val-fx-grain-size" class="slider-value">1</span></label>
+                  <input type="range" id="fx-grain-size" class="slider" min="1" max="3" value="1" step="1">
+                </div>
+              </div>
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-vignette-on"> Vignette</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-vignette-amount">Amount <span id="val-fx-vignette-amount" class="slider-value">50</span></label>
+                  <input type="range" id="fx-vignette-amount" class="slider" min="0" max="100" value="50" step="1">
+                </div>
+                <div class="control-group">
+                  <label for="fx-vignette-size">Size <span id="val-fx-vignette-size" class="slider-value">50</span></label>
+                  <input type="range" id="fx-vignette-size" class="slider" min="10" max="90" value="50" step="1">
+                </div>
+              </div>
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-scanlines-on"> Scanlines</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-scanlines-opacity">Opacity <span id="val-fx-scanlines-opacity" class="slider-value">40</span></label>
+                  <input type="range" id="fx-scanlines-opacity" class="slider" min="0" max="100" value="40" step="1">
+                </div>
+                <div class="control-group">
+                  <label for="fx-scanlines-spacing">Spacing <span id="val-fx-scanlines-spacing" class="slider-value">2</span></label>
+                  <input type="range" id="fx-scanlines-spacing" class="slider" min="1" max="8" value="2" step="1">
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Distort -->
+          <div class="effects-section" data-section="distort">
+            <div class="effects-section-header">
+              <span class="effects-section-label">Distort</span>
+              <span class="effects-section-chevron">v</span>
+            </div>
+            <div class="effects-section-body">
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-wave-on"> Wave</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-wave-amp-x">Amp X <span id="val-fx-wave-amp-x" class="slider-value">5</span></label>
+                  <input type="range" id="fx-wave-amp-x" class="slider" min="0" max="30" value="5" step="1">
+                </div>
+                <div class="control-group">
+                  <label for="fx-wave-amp-y">Amp Y <span id="val-fx-wave-amp-y" class="slider-value">5</span></label>
+                  <input type="range" id="fx-wave-amp-y" class="slider" min="0" max="30" value="5" step="1">
+                </div>
+                <div class="control-group">
+                  <label for="fx-wave-freq-x">Freq X <span id="val-fx-wave-freq-x" class="slider-value">8</span></label>
+                  <input type="range" id="fx-wave-freq-x" class="slider" min="1" max="20" value="8" step="1">
+                </div>
+                <div class="control-group">
+                  <label for="fx-wave-freq-y">Freq Y <span id="val-fx-wave-freq-y" class="slider-value">8</span></label>
+                  <input type="range" id="fx-wave-freq-y" class="slider" min="1" max="20" value="8" step="1">
+                </div>
+              </div>
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-scatter-on"> Pixel Scatter</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-scatter-radius">Radius <span id="val-fx-scatter-radius" class="slider-value">4</span></label>
+                  <input type="range" id="fx-scatter-radius" class="slider" min="0" max="20" value="4" step="1">
+                </div>
+              </div>
+
+              <div class="effects-effect-group">
+                <div class="effects-effect-header">
+                  <label><input type="checkbox" id="fx-barrel-on"> Barrel Distort</label>
+                </div>
+                <div class="control-group">
+                  <label for="fx-barrel-amount">Amount <span id="val-fx-barrel-amount" class="slider-value">0</span></label>
+                  <input type="range" id="fx-barrel-amount" class="slider" min="-100" max="100" value="0" step="1">
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </aside>
+
       <!-- Resize Handle -->
       <div id="panel-resize-handle" class="panel-resize-handle"></div>
 
@@ -175,6 +406,14 @@
               <button id="btn-save-preset" class="btn btn-secondary btn-small">Save Preset</button>
               <button id="btn-reset-all" class="btn btn-secondary btn-small">Reset All</button>
             </div>
+          </div>
+
+          <!-- Effects Layer Toggle -->
+          <div class="panel-section">
+            <button id="btn-toggle-effects" class="effects-toggle-btn">
+              Effects Layer
+              <span class="effects-toggle-indicator">OFF</span>
+            </button>
           </div>
 
           <!-- Adjustments Section -->
@@ -535,6 +774,7 @@
   <script src="js/export.js"></script>
   <script src="js/pattern-designer.js"></script>
   <script src="js/studio.js"></script>
+  <script src="js/effects.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/video.js"></script>
   <script src="js/app.js"></script>

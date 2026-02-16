@@ -24,9 +24,16 @@ const DitterUI = (() => {
   let sourceTimer = null;
   const PROCESS_DELAY = 80; // ms debounce for slider changes
 
+  // Effects settings
+  let effectSettings = DitterEffects.getDefaults();
+
+  // Effects debounce timer
+  let effectsTimer = null;
+
   // Callbacks
   let onSettingsChanged = null;
   let onSourceChanged = null;
+  let onEffectsChanged = null;
 
   /**
    * Initialize the UI.
@@ -36,6 +43,7 @@ const DitterUI = (() => {
   function init(options = {}) {
     onSettingsChanged = options.onSettingsChanged || null;
     onSourceChanged = options.onSourceChanged || null;
+    onEffectsChanged = options.onEffectsChanged || null;
 
     // Load default settings
     settings = DitterPresets.getDefaults();
@@ -54,6 +62,9 @@ const DitterUI = (() => {
 
     // Set up resizable panel
     setupPanelResize();
+
+    // Bind effects controls
+    bindEffectsControls();
 
     // Apply initial state to UI
     applySettingsToUI(settings);
@@ -676,11 +687,201 @@ const DitterUI = (() => {
     }
   }
 
+  /**
+   * Bind effects panel controls.
+   */
+  function bindEffectsControls() {
+    // Toggle button in control panel
+    const toggleBtn = document.getElementById('btn-toggle-effects');
+    const panel = document.getElementById('effects-panel');
+    const indicator = toggleBtn.querySelector('.effects-toggle-indicator');
+
+    toggleBtn.addEventListener('click', () => {
+      const collapsed = panel.classList.toggle('collapsed');
+      toggleBtn.classList.toggle('active', !collapsed);
+      indicator.textContent = collapsed ? 'OFF' : 'ON';
+      // Resize canvas after animation
+      setTimeout(() => DitterCanvas.resize(), 220);
+    });
+
+    // Master toggle
+    const masterToggle = document.getElementById('effects-master-toggle');
+    masterToggle.addEventListener('change', () => {
+      effectSettings.enabled = masterToggle.checked;
+      triggerEffectsChanged();
+    });
+
+    // Reset button
+    document.getElementById('btn-effects-reset').addEventListener('click', () => {
+      effectSettings = DitterEffects.getDefaults();
+      applyEffectsSettingsToUI();
+      triggerEffectsChanged();
+    });
+
+    // Collapsible sections
+    document.querySelectorAll('.effects-section-header').forEach(header => {
+      header.addEventListener('click', () => {
+        header.closest('.effects-section').classList.toggle('collapsed');
+      });
+    });
+
+    // Effect checkbox toggles
+    const checkboxes = [
+      { id: 'fx-scanline-shift-on', key: 'scanlineShiftEnabled' },
+      { id: 'fx-block-shift-on', key: 'blockShiftEnabled' },
+      { id: 'fx-rgb-split-on', key: 'rgbSplitEnabled' },
+      { id: 'fx-interlace-on', key: 'interlaceEnabled' },
+      { id: 'fx-corruption-on', key: 'corruptionEnabled' },
+      { id: 'fx-grain-on', key: 'grainEnabled' },
+      { id: 'fx-vignette-on', key: 'vignetteEnabled' },
+      { id: 'fx-scanlines-on', key: 'scanlinesEnabled' },
+      { id: 'fx-wave-on', key: 'waveEnabled' },
+      { id: 'fx-scatter-on', key: 'scatterEnabled' },
+      { id: 'fx-barrel-on', key: 'barrelEnabled' }
+    ];
+
+    checkboxes.forEach(({ id, key }) => {
+      const el = document.getElementById(id);
+      el.addEventListener('change', () => {
+        effectSettings[key] = el.checked;
+        triggerEffectsChanged();
+      });
+    });
+
+    // Effect sliders
+    const fxSliders = [
+      { id: 'fx-scanline-shift-amount', key: 'scanlineShiftAmount', display: 'val-fx-scanline-shift-amount' },
+      { id: 'fx-scanline-shift-density', key: 'scanlineShiftDensity', display: 'val-fx-scanline-shift-density' },
+      { id: 'fx-block-shift-amount', key: 'blockShiftAmount', display: 'val-fx-block-shift-amount' },
+      { id: 'fx-block-shift-height', key: 'blockShiftHeight', display: 'val-fx-block-shift-height' },
+      { id: 'fx-rgb-split-amount', key: 'rgbSplitAmount', display: 'val-fx-rgb-split-amount' },
+      { id: 'fx-rgb-split-angle', key: 'rgbSplitAngle', display: 'val-fx-rgb-split-angle' },
+      { id: 'fx-interlace-opacity', key: 'interlaceOpacity', display: 'val-fx-interlace-opacity' },
+      { id: 'fx-interlace-gap', key: 'interlaceGap', display: 'val-fx-interlace-gap' },
+      { id: 'fx-corruption-amount', key: 'corruptionAmount', display: 'val-fx-corruption-amount' },
+      { id: 'fx-hue-rotate', key: 'hueRotate', display: 'val-fx-hue-rotate' },
+      { id: 'fx-saturation', key: 'saturation', display: 'val-fx-saturation' },
+      { id: 'fx-temperature', key: 'temperature', display: 'val-fx-temperature' },
+      { id: 'fx-channel-r', key: 'channelR', display: 'val-fx-channel-r' },
+      { id: 'fx-channel-g', key: 'channelG', display: 'val-fx-channel-g' },
+      { id: 'fx-channel-b', key: 'channelB', display: 'val-fx-channel-b' },
+      { id: 'fx-grain-amount', key: 'grainAmount', display: 'val-fx-grain-amount' },
+      { id: 'fx-grain-size', key: 'grainSize', display: 'val-fx-grain-size' },
+      { id: 'fx-vignette-amount', key: 'vignetteAmount', display: 'val-fx-vignette-amount' },
+      { id: 'fx-vignette-size', key: 'vignetteSize', display: 'val-fx-vignette-size' },
+      { id: 'fx-scanlines-opacity', key: 'scanlinesOpacity', display: 'val-fx-scanlines-opacity' },
+      { id: 'fx-scanlines-spacing', key: 'scanlinesSpacing', display: 'val-fx-scanlines-spacing' },
+      { id: 'fx-wave-amp-x', key: 'waveAmpX', display: 'val-fx-wave-amp-x' },
+      { id: 'fx-wave-amp-y', key: 'waveAmpY', display: 'val-fx-wave-amp-y' },
+      { id: 'fx-wave-freq-x', key: 'waveFreqX', display: 'val-fx-wave-freq-x' },
+      { id: 'fx-wave-freq-y', key: 'waveFreqY', display: 'val-fx-wave-freq-y' },
+      { id: 'fx-scatter-radius', key: 'scatterRadius', display: 'val-fx-scatter-radius' },
+      { id: 'fx-barrel-amount', key: 'barrelAmount', display: 'val-fx-barrel-amount' }
+    ];
+
+    fxSliders.forEach(({ id, key, display }) => {
+      const slider = document.getElementById(id);
+      const valueEl = document.getElementById(display);
+
+      slider.addEventListener('input', () => {
+        const val = parseFloat(slider.value);
+        effectSettings[key] = val;
+        valueEl.textContent = Number.isInteger(val) ? val : val.toFixed(1);
+        triggerEffectsChangedDebounced();
+      });
+    });
+  }
+
+  /**
+   * Apply current effect settings to the UI controls.
+   */
+  function applyEffectsSettingsToUI() {
+    const s = effectSettings;
+
+    document.getElementById('effects-master-toggle').checked = s.enabled;
+
+    // Checkboxes
+    document.getElementById('fx-scanline-shift-on').checked = s.scanlineShiftEnabled;
+    document.getElementById('fx-block-shift-on').checked = s.blockShiftEnabled;
+    document.getElementById('fx-rgb-split-on').checked = s.rgbSplitEnabled;
+    document.getElementById('fx-interlace-on').checked = s.interlaceEnabled;
+    document.getElementById('fx-corruption-on').checked = s.corruptionEnabled;
+    document.getElementById('fx-grain-on').checked = s.grainEnabled;
+    document.getElementById('fx-vignette-on').checked = s.vignetteEnabled;
+    document.getElementById('fx-scanlines-on').checked = s.scanlinesEnabled;
+    document.getElementById('fx-wave-on').checked = s.waveEnabled;
+    document.getElementById('fx-scatter-on').checked = s.scatterEnabled;
+    document.getElementById('fx-barrel-on').checked = s.barrelEnabled;
+
+    // Sliders
+    setSlider('fx-scanline-shift-amount', 'val-fx-scanline-shift-amount', s.scanlineShiftAmount);
+    setSlider('fx-scanline-shift-density', 'val-fx-scanline-shift-density', s.scanlineShiftDensity);
+    setSlider('fx-block-shift-amount', 'val-fx-block-shift-amount', s.blockShiftAmount);
+    setSlider('fx-block-shift-height', 'val-fx-block-shift-height', s.blockShiftHeight);
+    setSlider('fx-rgb-split-amount', 'val-fx-rgb-split-amount', s.rgbSplitAmount);
+    setSlider('fx-rgb-split-angle', 'val-fx-rgb-split-angle', s.rgbSplitAngle);
+    setSlider('fx-interlace-opacity', 'val-fx-interlace-opacity', s.interlaceOpacity);
+    setSlider('fx-interlace-gap', 'val-fx-interlace-gap', s.interlaceGap);
+    setSlider('fx-corruption-amount', 'val-fx-corruption-amount', s.corruptionAmount);
+    setSlider('fx-hue-rotate', 'val-fx-hue-rotate', s.hueRotate);
+    setSlider('fx-saturation', 'val-fx-saturation', s.saturation);
+    setSlider('fx-temperature', 'val-fx-temperature', s.temperature);
+    setSlider('fx-channel-r', 'val-fx-channel-r', s.channelR);
+    setSlider('fx-channel-g', 'val-fx-channel-g', s.channelG);
+    setSlider('fx-channel-b', 'val-fx-channel-b', s.channelB);
+    setSlider('fx-grain-amount', 'val-fx-grain-amount', s.grainAmount);
+    setSlider('fx-grain-size', 'val-fx-grain-size', s.grainSize);
+    setSlider('fx-vignette-amount', 'val-fx-vignette-amount', s.vignetteAmount);
+    setSlider('fx-vignette-size', 'val-fx-vignette-size', s.vignetteSize);
+    setSlider('fx-scanlines-opacity', 'val-fx-scanlines-opacity', s.scanlinesOpacity);
+    setSlider('fx-scanlines-spacing', 'val-fx-scanlines-spacing', s.scanlinesSpacing);
+    setSlider('fx-wave-amp-x', 'val-fx-wave-amp-x', s.waveAmpX);
+    setSlider('fx-wave-amp-y', 'val-fx-wave-amp-y', s.waveAmpY);
+    setSlider('fx-wave-freq-x', 'val-fx-wave-freq-x', s.waveFreqX);
+    setSlider('fx-wave-freq-y', 'val-fx-wave-freq-y', s.waveFreqY);
+    setSlider('fx-scatter-radius', 'val-fx-scatter-radius', s.scatterRadius);
+    setSlider('fx-barrel-amount', 'val-fx-barrel-amount', s.barrelAmount);
+  }
+
+  /**
+   * Get current effect parameters.
+   */
+  function getEffectParams() {
+    return { ...effectSettings };
+  }
+
+  /**
+   * Trigger effects changed immediately.
+   */
+  function triggerEffectsChanged() {
+    if (effectsTimer) {
+      clearTimeout(effectsTimer);
+      effectsTimer = null;
+    }
+    if (onEffectsChanged) {
+      onEffectsChanged(getEffectParams());
+    }
+  }
+
+  /**
+   * Trigger effects changed with debounce (for sliders).
+   */
+  function triggerEffectsChangedDebounced() {
+    if (effectsTimer) clearTimeout(effectsTimer);
+    effectsTimer = setTimeout(() => {
+      effectsTimer = null;
+      if (onEffectsChanged) {
+        onEffectsChanged(getEffectParams());
+      }
+    }, PROCESS_DELAY);
+  }
+
   return {
     init,
     getSettings,
     getProcessingParams,
     getSourceParams,
+    getEffectParams,
     applyPreset,
     showModal,
     hideModal,

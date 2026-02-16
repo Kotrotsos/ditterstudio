@@ -59,6 +59,12 @@ const DitterApp = (() => {
           DitterCanvas.processImage(params);
         }
       },
+      onEffectsChanged: (effectParams) => {
+        DitterCanvas.setEffectParams(effectParams);
+        if (DitterVideo.isActive()) {
+          DitterVideo.reprocessCurrentFrame();
+        }
+      },
       onSourceChanged: (sourceParams) => {
         if (sourceMode !== 'gradient') return;
         const { data, width, height } = generateSource(sourceParams);
