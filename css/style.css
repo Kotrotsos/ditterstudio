@@ -384,6 +384,17 @@ html, body {
   margin-bottom: 10px;
 }
 
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.section-title-row .section-title {
+  margin-bottom: 0;
+}
+
 /* --- Controls --- */
 .control-group {
   margin-bottom: 8px;

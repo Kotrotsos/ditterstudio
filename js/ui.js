@@ -7,6 +7,7 @@
 const DitterUI = (() => {
   // Current settings state
   let settings = {};
+  let ditherEnabled = true;
 
   // Source settings (separate from dither settings)
   let sourceSettings = {
@@ -390,6 +391,11 @@ const DitterUI = (() => {
       settings.invert = e.target.checked;
       triggerProcess();
     });
+
+    document.getElementById('toggle-dither').addEventListener('change', (e) => {
+      ditherEnabled = e.target.checked;
+      triggerProcess();
+    });
   }
 
   /**
@@ -609,8 +615,8 @@ const DitterUI = (() => {
   function getProcessingParams() {
     const palette = DitterPalettes.getColors(settings.paletteCategory, settings.palette);
     return {
-      category: settings.category,
-      algorithm: settings.algorithm,
+      category: ditherEnabled ? settings.category : 'none',
+      algorithm: ditherEnabled ? settings.algorithm : 'passthrough',
       palette,
       scale: settings.scale,
       lineScale: settings.lineScale,
