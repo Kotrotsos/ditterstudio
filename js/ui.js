@@ -743,7 +743,8 @@ const DitterUI = (() => {
       { id: 'fx-scanlines-on', key: 'scanlinesEnabled' },
       { id: 'fx-wave-on', key: 'waveEnabled' },
       { id: 'fx-scatter-on', key: 'scatterEnabled' },
-      { id: 'fx-barrel-on', key: 'barrelEnabled' }
+      { id: 'fx-barrel-on', key: 'barrelEnabled' },
+      { id: 'fx-chromatic-on', key: 'chromaticEnabled' }
     ];
 
     checkboxes.forEach(({ id, key }) => {
@@ -782,7 +783,11 @@ const DitterUI = (() => {
       { id: 'fx-wave-freq-x', key: 'waveFreqX', display: 'val-fx-wave-freq-x' },
       { id: 'fx-wave-freq-y', key: 'waveFreqY', display: 'val-fx-wave-freq-y' },
       { id: 'fx-scatter-radius', key: 'scatterRadius', display: 'val-fx-scatter-radius' },
-      { id: 'fx-barrel-amount', key: 'barrelAmount', display: 'val-fx-barrel-amount' }
+      { id: 'fx-barrel-amount', key: 'barrelAmount', display: 'val-fx-barrel-amount' },
+      { id: 'fx-chromatic-max-displace', key: 'chromaticMaxDisplace', display: 'val-fx-chromatic-max-displace' },
+      { id: 'fx-chromatic-red', key: 'chromaticRed', display: 'val-fx-chromatic-red' },
+      { id: 'fx-chromatic-green', key: 'chromaticGreen', display: 'val-fx-chromatic-green' },
+      { id: 'fx-chromatic-blue', key: 'chromaticBlue', display: 'val-fx-chromatic-blue' }
     ];
 
     fxSliders.forEach(({ id, key, display }) => {
@@ -818,6 +823,7 @@ const DitterUI = (() => {
     document.getElementById('fx-wave-on').checked = s.waveEnabled;
     document.getElementById('fx-scatter-on').checked = s.scatterEnabled;
     document.getElementById('fx-barrel-on').checked = s.barrelEnabled;
+    document.getElementById('fx-chromatic-on').checked = s.chromaticEnabled;
 
     // Sliders
     setSlider('fx-scanline-shift-amount', 'val-fx-scanline-shift-amount', s.scanlineShiftAmount);
@@ -847,6 +853,10 @@ const DitterUI = (() => {
     setSlider('fx-wave-freq-y', 'val-fx-wave-freq-y', s.waveFreqY);
     setSlider('fx-scatter-radius', 'val-fx-scatter-radius', s.scatterRadius);
     setSlider('fx-barrel-amount', 'val-fx-barrel-amount', s.barrelAmount);
+    setSlider('fx-chromatic-max-displace', 'val-fx-chromatic-max-displace', s.chromaticMaxDisplace);
+    setSlider('fx-chromatic-red', 'val-fx-chromatic-red', s.chromaticRed);
+    setSlider('fx-chromatic-green', 'val-fx-chromatic-green', s.chromaticGreen);
+    setSlider('fx-chromatic-blue', 'val-fx-chromatic-blue', s.chromaticBlue);
   }
 
   /**
