@@ -833,6 +833,19 @@ const DitherEngine = (() => {
   const algorithms = {
 
     // -----------------------------------------
+    // NONE (Passthrough)
+    // -----------------------------------------
+    'none': {
+      'passthrough': {
+        name: 'No Dithering',
+        description: 'Passes through the image without dithering. Useful for applying only adjustments or post-processing effects.',
+        fn: function(imageData, palette, options = {}) {
+          return copyImageData(imageData);
+        }
+      }
+    },
+
+    // -----------------------------------------
     // ERROR DIFFUSION
     // -----------------------------------------
     'error-diffusion': {
@@ -4333,19 +4346,6 @@ const DitherEngine = (() => {
           }
 
           return { data, width, height };
-        }
-      }
-    },
-
-    // -----------------------------------------
-    // NONE (Passthrough)
-    // -----------------------------------------
-    'none': {
-      'passthrough': {
-        name: 'No Dithering',
-        description: 'Passes through the image without dithering. Useful for applying only adjustments or post-processing effects.',
-        fn: function(imageData, palette, options = {}) {
-          return copyImageData(imageData);
         }
       }
     }
