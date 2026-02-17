@@ -487,6 +487,25 @@
               </select>
             </div>
             <div id="palette-preview" class="palette-preview"></div>
+
+            <!-- Custom Palette Editor -->
+            <div id="custom-palette-editor" class="custom-palette-editor" style="display:none;">
+              <div class="control-group">
+                <label for="custom-palette-name">Name</label>
+                <input type="text" id="custom-palette-name" class="text-input" placeholder="My Palette">
+              </div>
+              <div class="custom-palette-colors" id="custom-palette-colors"></div>
+              <div class="custom-palette-add-row">
+                <input type="color" id="custom-palette-picker" value="#ff0000" class="color-picker-input">
+                <input type="text" id="custom-palette-hex" class="text-input hex-input" placeholder="#ff0000" maxlength="7">
+                <button id="custom-palette-add-color" class="btn btn-small">Add</button>
+              </div>
+              <div class="custom-palette-actions">
+                <button id="custom-palette-save" class="btn btn-primary btn-small">Save Palette</button>
+                <button id="custom-palette-delete" class="btn btn-danger btn-small" style="display:none;">Delete</button>
+              </div>
+            </div>
+            <button id="custom-palette-new-btn" class="btn btn-small btn-full" style="display:none;">New Custom Palette</button>
           </div>
 
           <!-- Tone Section -->

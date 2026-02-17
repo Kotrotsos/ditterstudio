@@ -53,6 +53,7 @@ const DitterUI = (() => {
     populateAlgorithmDropdowns();
     populatePaletteDropdowns();
     populatePresetDropdown();
+    updateCustomPaletteUI();
 
     // Bind all controls
     bindDropdowns();
@@ -178,6 +179,175 @@ const DitterUI = (() => {
     });
   }
 
+  // --- Custom Palette Editor ---
+
+  let customEditorColors = [];
+
+  function updateCustomPaletteUI() {
+    const isCustom = settings.paletteCategory === 'custom';
+    const editor = document.getElementById('custom-palette-editor');
+    const newBtn = document.getElementById('custom-palette-new-btn');
+    if (!editor || !newBtn) return;
+
+    newBtn.style.display = isCustom ? '' : 'none';
+
+    const palettes = DitterPalettes.getPalettesInCategory('custom');
+    const hasSelection = isCustom && settings.palette && palettes[settings.palette];
+
+    if (hasSelection) {
+      editor.style.display = '';
+      newBtn.style.display = 'none';
+      loadCustomPaletteIntoEditor();
+    } else if (isCustom) {
+      editor.style.display = 'none';
+    } else {
+      editor.style.display = 'none';
+    }
+  }
+
+  function loadCustomPaletteIntoEditor() {
+    if (settings.paletteCategory !== 'custom') return;
+    const palette = DitterPalettes.getPalette('custom', settings.palette);
+    const editor = document.getElementById('custom-palette-editor');
+    const deleteBtn = document.getElementById('custom-palette-delete');
+    if (!editor) return;
+
+    if (palette) {
+      editor.style.display = '';
+      document.getElementById('custom-palette-name').value = palette.name;
+      customEditorColors = palette.colors.map(c => [...c]);
+      renderEditorSwatches();
+      if (deleteBtn) deleteBtn.style.display = '';
+    }
+  }
+
+  function showNewPaletteEditor() {
+    const editor = document.getElementById('custom-palette-editor');
+    const newBtn = document.getElementById('custom-palette-new-btn');
+    const deleteBtn = document.getElementById('custom-palette-delete');
+    if (!editor) return;
+
+    editor.style.display = '';
+    if (newBtn) newBtn.style.display = 'none';
+    if (deleteBtn) deleteBtn.style.display = 'none';
+    document.getElementById('custom-palette-name').value = '';
+    customEditorColors = [[0, 0, 0], [255, 255, 255]];
+    renderEditorSwatches();
+  }
+
+  function renderEditorSwatches() {
+    const container = document.getElementById('custom-palette-colors');
+    if (!container) return;
+    clearChildren(container);
+
+    customEditorColors.forEach((color, i) => {
+      const swatch = document.createElement('div');
+      swatch.className = 'cp-swatch';
+      swatch.style.backgroundColor = `rgb(${color[0]},${color[1]},${color[2]})`;
+      swatch.title = rgbToHex(color[0], color[1], color[2]);
+      swatch.addEventListener('click', () => {
+        if (customEditorColors.length > 2) {
+          customEditorColors.splice(i, 1);
+          renderEditorSwatches();
+        }
+      });
+      container.appendChild(swatch);
+    });
+  }
+
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  function hexToRgb(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    if (hex.length !== 6) return null;
+    const n = parseInt(hex, 16);
+    if (isNaN(n)) return null;
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  function bindCustomPaletteControls() {
+    const picker = document.getElementById('custom-palette-picker');
+    const hexInput = document.getElementById('custom-palette-hex');
+    const addBtn = document.getElementById('custom-palette-add-color');
+    const saveBtn = document.getElementById('custom-palette-save');
+    const deleteBtn = document.getElementById('custom-palette-delete');
+    const newBtn = document.getElementById('custom-palette-new-btn');
+
+    if (!picker) return;
+
+    // Sync picker and hex input
+    picker.addEventListener('input', () => {
+      hexInput.value = picker.value;
+    });
+    hexInput.addEventListener('input', () => {
+      if (/^#[0-9a-fA-F]{6}$/.test(hexInput.value)) {
+        picker.value = hexInput.value;
+      }
+    });
+
+    // Add color
+    addBtn.addEventListener('click', () => {
+      const rgb = hexToRgb(hexInput.value || picker.value);
+      if (rgb) {
+        customEditorColors.push(rgb);
+        renderEditorSwatches();
+      }
+    });
+
+    // Save palette
+    saveBtn.addEventListener('click', () => {
+      const name = document.getElementById('custom-palette-name').value.trim();
+      if (!name) { document.getElementById('custom-palette-name').focus(); return; }
+      if (customEditorColors.length < 2) return;
+
+      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      if (!id) return;
+
+      // If editing existing, remove old first
+      if (settings.palette && settings.paletteCategory === 'custom') {
+        DitterPalettes.removeCustomPalette(settings.palette);
+      }
+
+      DitterPalettes.addCustomPalette(id, name, customEditorColors.map(c => [...c]));
+
+      settings.paletteCategory = 'custom';
+      settings.palette = id;
+      document.getElementById('palette-category').value = 'custom';
+      updatePaletteOptions('custom');
+      document.getElementById('palette-select').value = id;
+      updateCustomPaletteUI();
+      triggerProcess();
+    });
+
+    // Delete palette
+    deleteBtn.addEventListener('click', () => {
+      if (settings.paletteCategory !== 'custom' || !settings.palette) return;
+      DitterPalettes.removeCustomPalette(settings.palette);
+      updatePaletteOptions('custom');
+
+      const remaining = Object.keys(DitterPalettes.getPalettesInCategory('custom'));
+      if (remaining.length > 0) {
+        settings.palette = remaining[0];
+        document.getElementById('palette-select').value = settings.palette;
+        loadCustomPaletteIntoEditor();
+      } else {
+        document.getElementById('custom-palette-editor').style.display = 'none';
+        document.getElementById('custom-palette-new-btn').style.display = '';
+        settings.paletteCategory = 'default';
+        settings.palette = 'bw';
+        document.getElementById('palette-category').value = 'default';
+        updatePaletteOptions('default');
+      }
+      triggerProcess();
+    });
+
+    // New palette button
+    newBtn.addEventListener('click', showNewPaletteEditor);
+  }
+
   /**
    * Populate the preset dropdown.
    */
@@ -279,6 +449,7 @@ const DitterUI = (() => {
     document.getElementById('palette-category').addEventListener('change', (e) => {
       settings.paletteCategory = e.target.value;
       updatePaletteOptions(settings.paletteCategory);
+      updateCustomPaletteUI();
       triggerProcess();
     });
 
@@ -286,8 +457,12 @@ const DitterUI = (() => {
     document.getElementById('palette-select').addEventListener('change', (e) => {
       settings.palette = e.target.value;
       updatePalettePreview();
+      loadCustomPaletteIntoEditor();
       triggerProcess();
     });
+
+    // Custom palette editor
+    bindCustomPaletteControls();
 
     // Preset
     document.getElementById('preset-select').addEventListener('change', (e) => {
